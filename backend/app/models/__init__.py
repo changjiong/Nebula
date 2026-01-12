@@ -3,6 +3,19 @@ import uuid
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
+from .agent import Agent, AgentCreate, AgentPublic, AgentsPublic, AgentUpdate
+from .conversation import (
+    Conversation,
+    ConversationCreate,
+    ConversationPublic,
+    MessageCreate,
+    MessagePublic,
+)
+from .conversation import (
+    Message as ChatMessage,
+)
+from .task import Task, TaskCreate, TaskPublic, TasksPublic, TaskUpdate
+
 
 # Shared properties
 class UserBase(SQLModel):
@@ -112,13 +125,41 @@ class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
 
-from .agent import Agent, AgentCreate, AgentUpdate, AgentPublic, AgentsPublic
-from .conversation import (
-    Conversation, 
-    ConversationCreate, 
-    ConversationPublic, 
-    Message, 
-    MessageCreate, 
-    MessagePublic
-)
-from .task import Task, TaskCreate, TaskUpdate, TaskPublic, TasksPublic
+
+__all__ = [
+    "User",
+    "UserBase",
+    "UserCreate",
+    "UserUpdate",
+    "UserUpdateMe",
+    "UserRegister",
+    "UserPublic",
+    "UsersPublic",
+    "UpdatePassword",
+    "Item",
+    "ItemBase",
+    "ItemCreate",
+    "ItemUpdate",
+    "ItemPublic",
+    "ItemsPublic",
+    "Message",
+    "Token",
+    "TokenPayload",
+    "NewPassword",
+    "Agent",
+    "AgentCreate",
+    "AgentUpdate",
+    "AgentPublic",
+    "AgentsPublic",
+    "Conversation",
+    "ConversationCreate",
+    "ConversationPublic",
+    "ChatMessage",
+    "MessageCreate",
+    "MessagePublic",
+    "Task",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskPublic",
+    "TasksPublic",
+]

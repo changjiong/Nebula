@@ -115,4 +115,4 @@ class TestAgentInput:
 
         # Extra fields allowed
         input_data = MyInput(query="test", extra_field=123)
-        assert getattr(input_data, "extra_field") == 123
+        assert input_data.extra_field == 123

@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import Any
-from sqlmodel import Field, SQLModel, Column
+
 from sqlalchemy import JSON
+from sqlmodel import Column, Field, SQLModel
+
 
 # Shared properties
 class TaskBase(SQLModel):
@@ -25,11 +26,11 @@ class Task(TaskBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     status: str = Field(default="pending", max_length=50)
     processed_items: int = Field(default=0)
-    
+
     # Use sa_column for JSON storage
     error_log: dict | None = Field(default=None, sa_column=Column(JSON))
     result: dict | None = Field(default=None, sa_column=Column(JSON))
-    
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     finished_at: datetime | None = Field(default=None)
 

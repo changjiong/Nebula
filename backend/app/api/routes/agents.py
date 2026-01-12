@@ -57,7 +57,7 @@ def update_agent(
     agent = session.get(Agent, id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
+
     update_data = agent_in.model_dump(exclude_unset=True)
     agent.sqlmodel_update(update_data)
     session.add(agent)

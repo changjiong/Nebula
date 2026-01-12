@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
-from sqlmodel import Field, SQLModel, Relationship
+
+from sqlmodel import Field, Relationship, SQLModel
+
 
 # Shared properties for Conversation
 class ConversationBase(SQLModel):
@@ -16,7 +18,7 @@ class Conversation(ConversationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column_kwargs={"onupdate": datetime.utcnow})
-    
+
     messages: list["Message"] = Relationship(back_populates="conversation", sa_relationship_kwargs={"cascade": "all, delete"})
 
 # Properties to return via API
@@ -39,7 +41,7 @@ class Message(MessageBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     conversation_id: uuid.UUID = Field(foreign_key="conversation.id", ondelete="CASCADE")
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     conversation: Conversation = Relationship(back_populates="messages")
 
 # Properties to return via API

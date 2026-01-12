@@ -5,10 +5,14 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
-from app.api.deps import SessionDep, CurrentUser
+from app.api.deps import CurrentUser, SessionDep
 from app.models import (
-    Conversation, ConversationCreate, ConversationPublic, 
-    Message, MessageCreate, MessagePublic
+    ChatMessage,
+    Conversation,
+    ConversationCreate,
+    ConversationPublic,
+    MessageCreate,
+    MessagePublic,
 )
 
 router = APIRouter()
@@ -34,7 +38,7 @@ def read_messages(
     """
     Get messages for a conversation.
     """
-    statement = select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at)
+    statement = select(ChatMessage).where(ChatMessage.conversation_id == conversation_id).order_by(ChatMessage.created_at)
     messages = session.exec(statement).all()
     return messages
 
@@ -48,8 +52,8 @@ def send_message(
     conversation = session.get(Conversation, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    message = Message.model_validate(message_in)
+
+    message = ChatMessage.model_validate(message_in)
     message.conversation_id = conversation_id
     session.add(message)
     session.commit()
@@ -65,19 +69,19 @@ def stream_generator():
     response_text = "This is a streaming response from the Agent Portal."
     # Simulate thinking
     time.sleep(0.5)
-    
+
     words = response_text.split()
-    for i, word in enumerate(words):
+    for word in words:
         # Format as SSE event
         yield f"data: {word} \n\n"
         time.sleep(0.1)
-    
+
     # End of stream signal if needed, or just close connection
     yield "data: [DONE]\n\n"
 
 @router.post("/stream")
 def stream_chat(
-    *, session: SessionDep, message_in: MessageCreate, agent_id: uuid.UUID | None = None
+    *, _session: SessionDep, _message_in: MessageCreate, _agent_id: uuid.UUID | None = None
 ) -> Any:
     """
     Stream chat response (SSE).

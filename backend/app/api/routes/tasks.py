@@ -55,7 +55,7 @@ def cancel_task(session: SessionDep, id: uuid.UUID) -> Any:
     task = session.get(Task, id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if task.status in ["completed", "failed"]:
         raise HTTPException(status_code=400, detail="Cannot cancel completed or failed task")
 

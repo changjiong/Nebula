@@ -7,21 +7,14 @@ import { ThinkingPanel } from "@/components/ThinkingChain/ThinkingPanel"
 import { useSSE } from "@/hooks/useSSE"
 import { useChatStore } from "@/stores/chatStore"
 
-// @ts-expect-error
 export const Route = createFileRoute("/_layout/chat")({
   component: ChatPage,
 })
 
-function ChatPage() {
-  // Use a hardcoded URL for now or enviroment variable.
-  // In a real app, this might be dynamic based on session.
-  // Assuming backend runs on same host/port during dev proxy or a known URL.
-  // For now, let's assume we might get a conversation ID and connect to it.
+function ChatPage(): React.JSX.Element {
   const { messages } = useChatStore()
 
-  // Example SSE connection. In a real scenario, we might connect only when a session starts.
-  // For demo purposes, we connect to a mock endpoint or a real one if available.
-  // Passing null initially to not auto-connect until we have a proper endpoint logic.
+  // Initialize SSE connection (currently disabled with null for dev/mock)
   useSSE(null)
 
   return (

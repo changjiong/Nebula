@@ -1,8 +1,9 @@
 import uuid
-from typing import Any
-from sqlmodel import Field, SQLModel, Column
-from sqlalchemy import JSON
 from datetime import datetime
+
+from sqlalchemy import JSON
+from sqlmodel import Column, Field, SQLModel
+
 
 # Shared properties
 class AgentBase(SQLModel):

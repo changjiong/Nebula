@@ -206,7 +206,7 @@ class BaseAgent(ABC):
                     errors.append(f"Field {field.name} must be a string")
                 elif field.type == "int" and not isinstance(value, int):
                     errors.append(f"Field {field.name} must be an integer")
-                elif field.type == "float" and not isinstance(value, (int, float)):
+                elif field.type == "float" and not isinstance(value, int | float):
                     errors.append(f"Field {field.name} must be a number")
                 elif field.type == "array" and not isinstance(value, list):
                     errors.append(f"Field {field.name} must be an array")
