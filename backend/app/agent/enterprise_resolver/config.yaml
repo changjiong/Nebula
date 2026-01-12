@@ -1,0 +1,67 @@
+# Enterprise Resolver Agent Configuration
+# 企业主体识别 Agent 配置文件
+
+name: enterprise_resolver
+version: "1.0.0"
+description: "企业主体识别 Agent - 解析用户输入识别企业实体，支持模糊匹配和多结果排序"
+
+# Input schema definition
+input:
+  - name: query
+    type: string
+    required: true
+    description: "用户输入的企业名称、统一社会信用代码或关键词"
+  - name: limit
+    type: int
+    required: false
+    default: 10
+    description: "返回结果数量限制"
+  - name: min_confidence
+    type: float
+    required: false
+    default: 0.5
+    description: "最小置信度阈值 (0-1)"
+
+# Output schema definition
+output:
+  - name: enterprises
+    type: array
+    description: "识别到的企业列表，包含名称、代码、匹配度等信息"
+  - name: total_count
+    type: int
+    description: "匹配到的企业总数"
+  - name: query_type
+    type: string
+    description: "识别出的查询类型: name/code/keyword"
+
+# External service configurations
+services:
+  - name: model_factory
+    model: enterprise_ner
+    description: "企业实体命名识别模型"
+    timeout: 10
+    retry_count: 3
+
+  - name: data_warehouse
+    endpoint: /api/v1/enterprise/search
+    method: POST
+    description: "企业数据仓库搜索接口"
+    timeout: 30
+    retry_count: 2
+
+  - name: external_api
+    endpoint: /api/v1/business/verify
+    method: GET
+    description: "工商信息验证接口"
+    timeout: 15
+    retry_count: 2
+
+# Additional metadata
+metadata:
+  category: "entity_resolution"
+  tags:
+    - enterprise
+    - ner
+    - search
+  author: "Agent Portal Team"
+  created_at: "2026-01-13"
