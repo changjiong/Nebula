@@ -1,0 +1,54 @@
+# Agent Template Configuration
+# 复制此目录并修改以创建新的 Agent
+
+# TODO: 修改为你的 Agent 名称
+name: template_agent
+version: "1.0.0"
+description: "Agent 描述 - 简要说明 Agent 的功能"
+
+# Input schema definition
+# TODO: 定义输入参数
+input:
+  - name: query
+    type: string
+    required: true
+    description: "主要输入参数描述"
+  - name: options
+    type: object
+    required: false
+    description: "可选配置参数"
+
+# Output schema definition
+# TODO: 定义输出格式
+output:
+  - name: result
+    type: object
+    description: "主要输出结果"
+  - name: metadata
+    type: object
+    description: "额外元数据"
+
+# External service configurations
+# TODO: 配置需要调用的外部服务
+services:
+  - name: model_factory
+    model: your_model_name
+    description: "模型服务描述"
+    timeout: 10
+    retry_count: 3
+
+  - name: data_warehouse
+    endpoint: /api/v1/your/endpoint
+    method: POST
+    description: "数据仓库接口描述"
+    timeout: 30
+    retry_count: 2
+
+# Additional metadata
+metadata:
+  category: "category_name"
+  tags:
+    - tag1
+    - tag2
+  author: "Your Name"
+  created_at: "YYYY-MM-DD"
