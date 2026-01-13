@@ -9,20 +9,86 @@ export function InputBox() {
   const { addMessage, isConnecting } = useChatStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSubmit = () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!input.trim() || isConnecting) return
 
-    addMessage({
+    const userMessage = {
       id: Date.now().toString(),
-      role: "user",
+      role: "user" as const,
       content: input,
       timestamp: Date.now(),
-    })
+    }
 
-    // TODO: Send to backend via API or triggering an event that useSSE might listen to (if bi-directional)
-    // For now, we assume the backend interaction will happen separately or this is just UI.
-
+    addMessage(userMessage)
     setInput("")
+
+    // Call the backend streaming endpoint
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
+      const response = await fetch(`${apiUrl}/api/v1/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({
+          role: "user",
+          content: input,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      // Handle SSE response
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let assistantMessage = ""
+
+      if (reader) {
+        // Create initial empty assistant message
+        const assistantMessageId = (Date.now() + 1).toString()
+        addMessage({
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: Date.now(),
+        })
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value)
+          const lines = chunk.split("\n")
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim()
+              if (data === "[DONE]") break
+
+              assistantMessage += data + " "
+
+              // Update the assistant message with accumulated content
+              if (assistantMessage.trim()) {
+                const { updateMessage } = useChatStore.getState()
+                updateMessage(assistantMessageId, assistantMessage.trim())
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error)
+      addMessage({
+        id: (Date.now() + 2).toString(),
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+        timestamp: Date.now(),
+      })
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

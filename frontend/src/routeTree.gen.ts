@@ -15,8 +15,10 @@ import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutTasksRouteImport } from './routes/_layout/tasks'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutChatRouteImport } from './routes/_layout/chat'
+import { Route as LayoutAgentsRouteImport } from './routes/_layout/agents'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 
 const SignupRoute = SignupRouteImport.update({
@@ -48,6 +50,11 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutTasksRoute = LayoutTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -56,6 +63,11 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
 const LayoutChatRoute = LayoutChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutAgentsRoute = LayoutAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutAdminRoute = LayoutAdminRouteImport.update({
@@ -70,8 +82,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/agents': typeof LayoutAgentsRoute
   '/chat': typeof LayoutChatRoute
   '/settings': typeof LayoutSettingsRoute
+  '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesByTo {
@@ -80,8 +94,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRoute
+  '/agents': typeof LayoutAgentsRoute
   '/chat': typeof LayoutChatRoute
   '/settings': typeof LayoutSettingsRoute
+  '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -92,8 +108,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/agents': typeof LayoutAgentsRoute
   '/_layout/chat': typeof LayoutChatRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/tasks': typeof LayoutTasksRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -104,8 +122,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/agents'
     | '/chat'
     | '/settings'
+    | '/tasks'
     | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -114,8 +134,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin'
+    | '/agents'
     | '/chat'
     | '/settings'
+    | '/tasks'
     | '/'
   id:
     | '__root__'
@@ -125,8 +147,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/_layout/admin'
+    | '/_layout/agents'
     | '/_layout/chat'
     | '/_layout/settings'
+    | '/_layout/tasks'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -182,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/tasks': {
+      id: '/_layout/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof LayoutTasksRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
@@ -196,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutChatRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/agents': {
+      id: '/_layout/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof LayoutAgentsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/admin': {
       id: '/_layout/admin'
       path: '/admin'
@@ -208,15 +246,19 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
+  LayoutAgentsRoute: typeof LayoutAgentsRoute
   LayoutChatRoute: typeof LayoutChatRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutTasksRoute: typeof LayoutTasksRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
+  LayoutAgentsRoute: LayoutAgentsRoute,
   LayoutChatRoute: LayoutChatRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
+  LayoutTasksRoute: LayoutTasksRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
 

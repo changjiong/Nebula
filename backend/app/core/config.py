@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
 
+    # DeepSeek / LLM Configuration
+    DEEPSEEK_API_KEY: str = "changethis"
+    DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"
+    LLM_MODEL: str = "deepseek-chat"
+
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
             message = (

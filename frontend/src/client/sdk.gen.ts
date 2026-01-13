@@ -3,22 +3,22 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { ItemsReadItemsData, ItemsReadItemsResponse, ItemsCreateItemData, ItemsCreateItemResponse, ItemsReadItemData, ItemsReadItemResponse, ItemsUpdateItemData, ItemsUpdateItemResponse, ItemsDeleteItemData, ItemsDeleteItemResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, PrivateCreateUserData, PrivateCreateUserResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse } from './types.gen';
+import type { AgentsReadAgentsData, AgentsReadAgentsResponse, AgentsCreateAgentData, AgentsCreateAgentResponse, AgentsReadAgentData, AgentsReadAgentResponse, AgentsUpdateAgentData, AgentsUpdateAgentResponse, AgentsDeleteAgentData, AgentsDeleteAgentResponse, ChatCreateConversationData, ChatCreateConversationResponse, ChatReadMessagesData, ChatReadMessagesResponse, ChatSendMessageData, ChatSendMessageResponse, ChatStreamChatData, ChatStreamChatResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, PrivateCreateUserData, PrivateCreateUserResponse, TasksReadTasksData, TasksReadTasksResponse, TasksCreateTaskData, TasksCreateTaskResponse, TasksReadTaskData, TasksReadTaskResponse, TasksCancelTaskData, TasksCancelTaskResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse } from './types.gen';
 
-export class ItemsService {
+export class AgentsService {
     /**
-     * Read Items
-     * Retrieve items.
+     * Read Agents
+     * Retrieve agents.
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
-     * @returns ItemsPublic Successful Response
+     * @returns AgentsPublic Successful Response
      * @throws ApiError
      */
-    public static readItems(data: ItemsReadItemsData = {}): CancelablePromise<ItemsReadItemsResponse> {
+    public static readAgents(data: AgentsReadAgentsData = {}): CancelablePromise<AgentsReadAgentsResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v1/items/',
+            url: '/api/v1/agents/',
             query: {
                 skip: data.skip,
                 limit: data.limit
@@ -30,17 +30,17 @@ export class ItemsService {
     }
     
     /**
-     * Create Item
-     * Create new item.
+     * Create Agent
+     * Create new agent.
      * @param data The data for the request.
      * @param data.requestBody
-     * @returns ItemPublic Successful Response
+     * @returns AgentPublic Successful Response
      * @throws ApiError
      */
-    public static createItem(data: ItemsCreateItemData): CancelablePromise<ItemsCreateItemResponse> {
+    public static createAgent(data: AgentsCreateAgentData): CancelablePromise<AgentsCreateAgentResponse> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/api/v1/items/',
+            url: '/api/v1/agents/',
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
@@ -50,17 +50,17 @@ export class ItemsService {
     }
     
     /**
-     * Read Item
-     * Get item by ID.
+     * Read Agent
+     * Get agent by ID.
      * @param data The data for the request.
      * @param data.id
-     * @returns ItemPublic Successful Response
+     * @returns AgentPublic Successful Response
      * @throws ApiError
      */
-    public static readItem(data: ItemsReadItemData): CancelablePromise<ItemsReadItemResponse> {
+    public static readAgent(data: AgentsReadAgentData): CancelablePromise<AgentsReadAgentResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/agents/{id}',
             path: {
                 id: data.id
             },
@@ -71,18 +71,18 @@ export class ItemsService {
     }
     
     /**
-     * Update Item
-     * Update an item.
+     * Update Agent
+     * Update an agent.
      * @param data The data for the request.
      * @param data.id
      * @param data.requestBody
-     * @returns ItemPublic Successful Response
+     * @returns AgentPublic Successful Response
      * @throws ApiError
      */
-    public static updateItem(data: ItemsUpdateItemData): CancelablePromise<ItemsUpdateItemResponse> {
+    public static updateAgent(data: AgentsUpdateAgentData): CancelablePromise<AgentsUpdateAgentResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/agents/{id}',
             path: {
                 id: data.id
             },
@@ -95,20 +95,111 @@ export class ItemsService {
     }
     
     /**
-     * Delete Item
-     * Delete an item.
+     * Delete Agent
+     * Delete an agent.
      * @param data The data for the request.
      * @param data.id
-     * @returns Message Successful Response
+     * @returns AgentPublic Successful Response
      * @throws ApiError
      */
-    public static deleteItem(data: ItemsDeleteItemData): CancelablePromise<ItemsDeleteItemResponse> {
+    public static deleteAgent(data: AgentsDeleteAgentData): CancelablePromise<AgentsDeleteAgentResponse> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/agents/{id}',
             path: {
                 id: data.id
             },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class ChatService {
+    /**
+     * Create Conversation
+     * Create new conversation.
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ConversationPublic Successful Response
+     * @throws ApiError
+     */
+    public static createConversation(data: ChatCreateConversationData): CancelablePromise<ChatCreateConversationResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/chat/',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Read Messages
+     * Get messages for a conversation.
+     * @param data The data for the request.
+     * @param data.conversationId
+     * @returns MessagePublic Successful Response
+     * @throws ApiError
+     */
+    public static readMessages(data: ChatReadMessagesData): CancelablePromise<ChatReadMessagesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/chat/{conversation_id}/messages',
+            path: {
+                conversation_id: data.conversationId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Send Message
+     * Send a message to a conversation.
+     * @param data The data for the request.
+     * @param data.conversationId
+     * @param data.requestBody
+     * @returns MessagePublic Successful Response
+     * @throws ApiError
+     */
+    public static sendMessage(data: ChatSendMessageData): CancelablePromise<ChatSendMessageResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/chat/{conversation_id}/send',
+            path: {
+                conversation_id: data.conversationId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Stream Chat
+     * Stream chat response (SSE).
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @param data.agentId
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static streamChat(data: ChatStreamChatData): CancelablePromise<ChatStreamChatResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/chat/stream',
+            query: {
+                _agent_id: data.agentId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
             errors: {
                 422: 'Validation Error'
             }
@@ -228,6 +319,93 @@ export class PrivateService {
             url: '/api/v1/private/users/',
             body: data.requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class TasksService {
+    /**
+     * Read Tasks
+     * Retrieve batch tasks.
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns TasksPublic Successful Response
+     * @throws ApiError
+     */
+    public static readTasks(data: TasksReadTasksData = {}): CancelablePromise<TasksReadTasksResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/tasks/',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Create Task
+     * Create new batch task.
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns TaskPublic Successful Response
+     * @throws ApiError
+     */
+    public static createTask(data: TasksCreateTaskData): CancelablePromise<TasksCreateTaskResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/tasks/',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Read Task
+     * Get task status/result.
+     * @param data The data for the request.
+     * @param data.id
+     * @returns TaskPublic Successful Response
+     * @throws ApiError
+     */
+    public static readTask(data: TasksReadTaskData): CancelablePromise<TasksReadTaskResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/tasks/{id}',
+            path: {
+                id: data.id
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Cancel Task
+     * Cancel a task.
+     * @param data The data for the request.
+     * @param data.id
+     * @returns TaskPublic Successful Response
+     * @throws ApiError
+     */
+    public static cancelTask(data: TasksCancelTaskData): CancelablePromise<TasksCancelTaskResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/tasks/{id}/cancel',
+            path: {
+                id: data.id
+            },
             errors: {
                 422: 'Validation Error'
             }

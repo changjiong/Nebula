@@ -1,11 +1,12 @@
 import uuid
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core.llm import stream_chat_completion
 from app.models import (
     ChatMessage,
     Conversation,
@@ -16,6 +17,7 @@ from app.models import (
 )
 
 router = APIRouter()
+
 
 @router.post("/", response_model=ConversationPublic)
 def create_conversation(
@@ -31,16 +33,20 @@ def create_conversation(
     session.refresh(conversation)
     return conversation
 
+
 @router.get("/{conversation_id}/messages", response_model=list[MessagePublic])
-def read_messages(
-    session: SessionDep, conversation_id: uuid.UUID
-) -> Any:
+def read_messages(session: SessionDep, conversation_id: uuid.UUID) -> Any:
     """
     Get messages for a conversation.
     """
-    statement = select(ChatMessage).where(ChatMessage.conversation_id == conversation_id).order_by(ChatMessage.created_at)
+    statement = (
+        select(ChatMessage)
+        .where(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.created_at)
+    )
     messages = session.exec(statement).all()
     return messages
+
 
 @router.post("/{conversation_id}/send", response_model=MessagePublic)
 def send_message(
@@ -61,30 +67,50 @@ def send_message(
     return message
 
 
-def stream_generator():
+async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
     """
-    Mock generator for SSE.
+    Stream AI responses using DeepSeek LLM.
+    
+    Yields SSE-formatted chunks for frontend consumption.
     """
-    import time
-    response_text = "This is a streaming response from the Agent Portal."
-    # Simulate thinking
-    time.sleep(0.5)
+    try:
+        # Prepare messages for LLM
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful AI assistant. Answer questions clearly and concisely.",
+            },
+            {
+                "role": "user",
+                "content": input_text,
+            },
+        ]
+        
+        # Stream from DeepSeek API
+        async for token in stream_chat_completion(messages):
+            # Format as SSE
+            yield f"data: {token}\\n\\n"
+        
+        yield "data: [DONE]\\n\\n"
+        
+    except Exception as e:
+        yield f"data: [ERROR] {str(e)}\\n\\n"
+        yield "data: [DONE]\\n\\n"
 
-    words = response_text.split()
-    for word in words:
-        # Format as SSE event
-        yield f"data: {word} \n\n"
-        time.sleep(0.1)
-
-    # End of stream signal if needed, or just close connection
-    yield "data: [DONE]\n\n"
 
 @router.post("/stream")
 def stream_chat(
-    *, _session: SessionDep, _message_in: MessageCreate, _agent_id: uuid.UUID | None = None
+    *,
+    _session: SessionDep,
+    _message_in: MessageCreate,
+    _agent_id: uuid.UUID | None = None,
 ) -> Any:
     """
-    Stream chat response (SSE).
+    Stream AI chat response using DeepSeek.
     """
-    # In a real scenario, this would interact with the Agent/LLM backend
-    return StreamingResponse(stream_generator(), media_type="text/event-stream")
+    input_text = _message_in.content
+    
+    return StreamingResponse(
+        ai_stream_generator(input_text),
+        media_type="text/event-stream",
+    )
