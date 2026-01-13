@@ -89,13 +89,13 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
         # Stream from DeepSeek API
         async for token in stream_chat_completion(messages):
             # Format as SSE
-            yield f"data: {token}\\n\\n"
+            yield f"data: {token}\n\n"
         
-        yield "data: [DONE]\\n\\n"
+        yield "data: [DONE]\n\n"
         
     except Exception as e:
-        yield f"data: [ERROR] {str(e)}\\n\\n"
-        yield "data: [DONE]\\n\\n"
+        yield f"data: [ERROR] {str(e)}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 @router.post("/stream")

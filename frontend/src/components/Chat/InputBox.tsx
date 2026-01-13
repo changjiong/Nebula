@@ -56,26 +56,32 @@ export function InputBox() {
           timestamp: Date.now(),
         })
 
+        let buffer = ""
+
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
-          const chunk = decoder.decode(value)
-          const lines = chunk.split("\n")
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || ""
 
           for (const line of lines) {
+            if (!line.trim()) continue
+
             if (line.startsWith("data: ")) {
               const data = line.slice(6).trim()
               if (data === "[DONE]") break
 
-              assistantMessage += data + " "
+              // Accumulate the token
+              assistantMessage += data
 
               // Update the assistant message with accumulated content
-              if (assistantMessage.trim()) {
-                const { updateMessage } = useChatStore.getState()
-                updateMessage(assistantMessageId, assistantMessage.trim())
-              }
+              const { updateMessage } = useChatStore.getState()
+              updateMessage(assistantMessageId, assistantMessage)
             }
           }
         }
