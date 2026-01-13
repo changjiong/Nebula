@@ -21,7 +21,7 @@ export function MessageList() {
     .pop()
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+    <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6 space-y-4 md:space-y-6">
       {messages.map((message, index) => (
         <div key={message.id}>
           {/* Show thinking steps before the last assistant message */}

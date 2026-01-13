@@ -7,6 +7,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { isLoggedIn } from "@/hooks/useAuth"
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -20,6 +21,9 @@ export const Route = createFileRoute("/_layout")({
 })
 
 function Layout() {
+  // Enable global keyboard shortcuts
+  useKeyboardShortcuts()
+
   return (
     <SidebarProvider>
       <AppSidebar />

@@ -24,7 +24,7 @@ export function ThinkingMessage({
         : `${completedSteps}/${steps.length}`
 
     return (
-        <div className="border rounded-lg p-4 my-2 bg-muted/30 space-y-3">
+        <div className="border rounded-lg p-3 md:p-4 my-2 bg-muted/30 space-y-2 md:space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

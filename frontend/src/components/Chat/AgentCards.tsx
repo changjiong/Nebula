@@ -24,7 +24,7 @@ export function AgentCards() {
   const { currentAgentId, setCurrentAgentId } = useChatStore()
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {MOCK_AGENTS.map((agent) => {
         const Icon = agent.icon
         return (
