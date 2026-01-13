@@ -1,7 +1,6 @@
 import { Briefcase, Users } from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
-import { Logo } from "@/components/Common/Logo"
 import {
   Sidebar,
   SidebarContent,
@@ -31,9 +30,14 @@ export function AppSidebar(): React.JSX.Element {
     : baseItems
 
   return (
-    <Sidebar collapsible="icon" className="w-[220px]">
-      <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center">
-        <Logo variant="responsive" />
+    <Sidebar>
+      <SidebarHeader className="border-b">
+        <div className="flex items-center gap-2 px-4 py-3">
+          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-sm">A</span>
+          </div>
+          <span className="font-semibold text-lg">ADTEC</span>
+        </div>
       </SidebarHeader>
       <SidebarContent className="px-2">
         {/* New Conversation Button */}

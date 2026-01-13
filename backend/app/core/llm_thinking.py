@@ -135,20 +135,20 @@ async def stream_chat_with_thinking(
             
             # Add thinking simulation for standard models
             if enable_thinking and not use_deepseek_r1:
-                # Emit simulated thinking steps before calling API
-                yield ThinkingStep(
+                # Step 1: Preparing
+                step1 = ThinkingStep(
                     "api-1", "准备调用 AI 模型", "in-progress", f"模型: {model_name}"
-                ).to_sse_event()
-                
+                )
+                yield step1.to_sse_event()
                 await __import__("asyncio").sleep(0.3)
                 
-                yield ThinkingStep(
-                    "api-1", "准备调用 AI 模型", "completed", f"模型: {model_name}"
-                ).to_sse_event()
+                # Complete step 1
+                step1.status = "completed"
+                yield step1.to_sse_event()
                 
-                yield ThinkingStep(
-                    "api-2", "正在生成回答...", "in-progress"
-                ).to_sse_event()
+                # Step 2: Generating (will be updated after streaming)
+                step2 = ThinkingStep("api-2", "正在生成回答...", "in-progress")
+                yield step2.to_sse_event()
             
             async with client.stream(
                 "POST",
@@ -202,11 +202,10 @@ async def stream_chat_with_thinking(
                         except json.JSONDecodeError:
                             continue
                 
-                # Complete thinking step
+                # Complete thinking step after streaming is done
                 if enable_thinking and not use_deepseek_r1 and has_content:
-                    yield ThinkingStep(
-                        "api-2", "回答生成完成", "completed"
-                    ).to_sse_event()
+                    step2_complete = ThinkingStep("api-2", "回答生成完成", "completed")
+                    yield step2_complete.to_sse_event()
                 
                 yield "data: [DONE]\n\n"
                 

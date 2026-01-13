@@ -30,6 +30,7 @@ export function DataTable({ data, config }: DataTableProps) {
     const columns = config?.columns || Object.keys(data[0] || {}).map((key) => ({
         key,
         title: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " "),
+        width: undefined
     }))
 
     const handleExport = () => {

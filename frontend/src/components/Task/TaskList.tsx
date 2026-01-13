@@ -51,7 +51,6 @@ export function TaskList(): React.JSX.Element {
                 <thead>
                     <tr className="border-b bg-muted/50">
                         <th className="p-4 text-left font-medium">ID</th>
-                        <th className="p-4 text-left font-medium">Type</th>
                         <th className="p-4 text-left font-medium">Status</th>
                         <th className="p-4 text-left font-medium">Created</th>
                         <th className="p-4 text-right font-medium">Actions</th>
@@ -63,7 +62,6 @@ export function TaskList(): React.JSX.Element {
                             <td className="p-4 font-mono text-sm">
                                 {task.id.slice(0, 8)}...
                             </td>
-                            <td className="p-4">{task.task_type}</td>
                             <td className="p-4">
                                 <span
                                     className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(task.status)}`}

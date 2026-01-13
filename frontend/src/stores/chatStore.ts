@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
 export interface Agent {
   id: string
@@ -66,7 +67,7 @@ interface ChatState {
   updateConversationTitle: (id: string, title: string) => void
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>()(persist((set, get) => ({
   messages: [],
   agents: [],
   thinkingSteps: [],
@@ -77,40 +78,78 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setMessages: (messages) => set({ messages }),
   addMessage: (message) => {
+    const { currentConversationId, conversations } = get()
+
     set((state) => {
       // Clear thinking steps when user sends a new message
       const shouldClearThinking = message.role === "user"
+
+      // Update conversations with new message
+      let updatedConversations = state.conversations
+      if (currentConversationId) {
+        updatedConversations = conversations.map((conv) =>
+          conv.id === currentConversationId
+            ? {
+              ...conv,
+              messages: [...conv.messages, message],
+              updatedAt: new Date(),
+            }
+            : conv,
+        )
+      }
+
       return {
         messages: [...state.messages, message],
         thinkingSteps: shouldClearThinking ? [] : state.thinkingSteps,
+        conversations: updatedConversations,
       }
     })
-    // Update current conversation
-    const { currentConversationId, conversations } = get()
-    if (currentConversationId) {
-      const updatedConversations = conversations.map((conv) =>
-        conv.id === currentConversationId
-          ? {
-            ...conv,
-            messages: [...conv.messages, message],
-            updatedAt: new Date(),
-          }
-          : conv,
-      )
-      set({ conversations: updatedConversations })
-    }
   },
-  updateMessage: (id, content) =>
-    set((state) => ({
-      messages: state.messages.map((msg) =>
-        msg.id === id ? { ...msg, content } : msg,
-      ),
-    })),
+  updateMessage: (id, content) => {
+    const { currentConversationId, conversations } = get()
+
+    set((state) => {
+      // Update in state.messages
+      const updatedMessages = state.messages.map((msg) =>
+        msg.id === id ? { ...msg, content } : msg
+      )
+
+      // Also update in conversations
+      let updatedConversations = state.conversations
+      if (currentConversationId) {
+        updatedConversations = conversations.map((conv) =>
+          conv.id === currentConversationId
+            ? {
+              ...conv,
+              messages: conv.messages.map((msg) =>
+                msg.id === id ? { ...msg, content } : msg
+              ),
+              updatedAt: new Date(),
+            }
+            : conv
+        )
+      }
+
+      return {
+        messages: updatedMessages,
+        conversations: updatedConversations,
+      }
+    })
+  },
 
   setAgents: (agents) => set({ agents }),
 
   addThinkingStep: (step) =>
-    set((state) => ({ thinkingSteps: [...state.thinkingSteps, step] })),
+    set((state) => {
+      const existingIndex = state.thinkingSteps.findIndex((s) => s.id === step.id)
+      if (existingIndex !== -1) {
+        const updated = [...state.thinkingSteps]
+        updated[existingIndex] = step
+        return { thinkingSteps: updated }
+      } else {
+        return { thinkingSteps: [...state.thinkingSteps, step] }
+      }
+    }),
   updateThinkingStep: (id, updates) =>
     set((state) => ({
       thinkingSteps: state.thinkingSteps.map((step) =>
@@ -165,5 +204,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
         c.id === id ? { ...c, title, updatedAt: new Date() } : c,
       ),
     }))
+  },
+}), {
+  name: "chat-storage",
+  partialize: (state) => ({
+    conversations: state.conversations,
+    currentConversationId: state.currentConversationId,
+  }),
+  onRehydrateStorage: () => {
+    return (state, error) => {
+      if (error) {
+        console.error('Hydration error:', error)
+        return
+      }
+
+      // After loading from localStorage, restore current conversation messages
+      if (state?.currentConversationId && state?.conversations) {
+        const currentConv = state.conversations.find(
+          (c) => c.id === state.currentConversationId
+        )
+        if (currentConv && currentConv.messages) {
+          // Properly update state using Zustand's pattern
+          state.messages = currentConv.messages
+          console.log(`✅ Restored ${currentConv.messages.length} messages from conversation: ${currentConv.title}`)
+        }
+      }
+    }
   },
 }))

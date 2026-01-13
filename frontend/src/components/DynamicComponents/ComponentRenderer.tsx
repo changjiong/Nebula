@@ -1,5 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ReactNode } from "react"
+
+export interface DynamicComponentAction {
+    type: "inject_to_system" | "export" | "navigate"
+    label: string
+    params?: any
+}
 
 export interface DynamicComponentProps {
     component_type: string
@@ -8,11 +14,7 @@ export interface DynamicComponentProps {
         data: any
         config?: any
     }
-    actions?: Array<{
-        type: "inject_to_system" | "export" | "navigate"
-        label: string
-        params?: any
-    }>
+    actions?: Array<DynamicComponentAction>
 }
 
 interface ComponentRendererProps {
@@ -57,7 +59,7 @@ export function ComponentRenderer({ payload }: ComponentRendererProps): ReactNod
     )
 }
 
-function handleAction(action: DynamicComponentProps["actions"][0]) {
+function handleAction(action: DynamicComponentAction) {
     console.log("Action triggered:", action)
     // TODO: Implement action handlers
 }

@@ -23,7 +23,7 @@ export function CandidateList({ data, config }: CandidateListProps) {
     const [selected, setSelected] = useState<string>("")
 
     const handleConfirm = () => {
-        if (selected && config?.on Select) {
+        if (selected && config?.onSelect) {
             config.onSelect(selected)
         }
     }
