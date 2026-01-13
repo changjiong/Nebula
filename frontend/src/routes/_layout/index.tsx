@@ -1,31 +1,44 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import useAuth from "@/hooks/useAuth"
+import { AgentCards } from "@/components/Chat/AgentCards"
+import { InputBox } from "@/components/Chat/InputBox"
+import { MessageList } from "@/components/Chat/MessageList"
+import { useSSE } from "@/hooks/useSSE"
+import { useChatStore } from "@/stores/chatStore"
 
-export const Route = createFileRoute("/_layout/")({
-  component: Dashboard,
+export const Route = createFileRoute("/_layout/")(({
+  component: ChatPage,
   head: () => ({
     meta: [
       {
-        title: "Dashboard - FastAPI Cloud",
+        title: "对公业务智能助手 - Agent Portal",
       },
     ],
   }),
-})
+}))
 
-function Dashboard() {
-  const { user: currentUser } = useAuth()
+function ChatPage(): React.JSX.Element {
+  const { messages } = useChatStore()
+
+  // Initialize SSE connection (currently disabled with null for dev/mock)
+  useSSE(null)
 
   return (
-    <div>
-      <div>
-        <h1 className="text-2xl truncate max-w-sm">
-          Hi, {currentUser?.full_name || currentUser?.email} 👋
-        </h1>
-        <p className="text-muted-foreground">
-          Welcome back, nice to see you again!!!
-        </p>
-      </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {messages.length === 0 ? (
+        <div className="flex-1 flex flex-col justify-center items-center p-8">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            您好,我是对公业务智能助手
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8">
+            我能为您做什么？
+          </p>
+          <AgentCards />
+        </div>
+      ) : (
+        <MessageList />
+      )}
+      <InputBox />
     </div>
   )
 }

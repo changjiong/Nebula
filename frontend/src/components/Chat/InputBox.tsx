@@ -57,6 +57,7 @@ export function InputBox() {
         })
 
         let buffer = ""
+        const { updateMessage, addThinkingStep } = useChatStore.getState()
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -76,12 +77,35 @@ export function InputBox() {
               const data = line.slice(6).trim()
               if (data === "[DONE]") break
 
-              // Accumulate the token
-              assistantMessage += data
+              try {
+                // Try to parse as JSON event
+                const event = JSON.parse(data)
 
-              // Update the assistant message with accumulated content
-              const { updateMessage } = useChatStore.getState()
-              updateMessage(assistantMessageId, assistantMessage)
+                if (event.type === "thinking") {
+                  // Add or update thinking step
+                  const step = event.data
+                  addThinkingStep({
+                    id: step.id,
+                    title: step.title,
+                    status: step.status,
+                    content: step.content || "",
+                    timestamp: step.timestamp,
+                  })
+                } else if (event.type === "message") {
+                  // Accumulate message content
+                  assistantMessage += event.data.content
+                  updateMessage(assistantMessageId, assistantMessage)
+                } else if (event.type === "error") {
+                  // Handle error
+                  console.error("Stream error:", event.data)
+                  assistantMessage += `\n[错误: ${event.data.message}]`
+                  updateMessage(assistantMessageId, assistantMessage)
+                }
+              } catch (e) {
+                // Fallback: treat as plain text (backward compatibility)
+                assistantMessage += data
+                updateMessage(assistantMessageId, assistantMessage)
+              }
             }
           }
         }

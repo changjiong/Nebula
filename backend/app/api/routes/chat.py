@@ -69,16 +69,21 @@ def send_message(
 
 async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
     """
-    Stream AI responses using DeepSeek LLM.
+    Stream AI responses with thinking chain visualization.
     
-    Yields SSE-formatted chunks for frontend consumption.
+    Yields SSE-formatted events:
+    - thinking: Reasoning steps
+    - message: Response content
+    - error: Error messages
     """
     try:
+        from app.core.llm_thinking import stream_chat_with_thinking
+        
         # Prepare messages for LLM
         messages = [
             {
                 "role": "system",
-                "content": "You are a helpful AI assistant. Answer questions clearly and concisely.",
+                "content": "你是一个有帮助的AI助手。请清晰简洁地回答问题。",
             },
             {
                 "role": "user",
@@ -86,15 +91,17 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
             },
         ]
         
-        # Stream from DeepSeek API
-        async for token in stream_chat_completion(messages):
-            # Format as SSE
-            yield f"data: {token}\n\n"
-        
-        yield "data: [DONE]\n\n"
+        # Stream from LLM with thinking chain
+        async for sse_event in stream_chat_with_thinking(messages, enable_thinking=True):
+            yield sse_event
         
     except Exception as e:
-        yield f"data: [ERROR] {str(e)}\n\n"
+        import json
+        error_event = {
+            "type": "error",
+            "data": {"code": "stream_error", "message": str(e)}
+        }
+        yield f"data: {json.dumps(error_event)}\n\n"
         yield "data: [DONE]\n\n"
 
 
