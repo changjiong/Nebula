@@ -91,15 +91,31 @@ export const useChatStore = create<ChatState>()(
           // Update conversations with new message
           let updatedConversations = state.conversations
           if (currentConversationId) {
-            updatedConversations = conversations.map((conv) =>
-              conv.id === currentConversationId
-                ? {
-                    ...conv,
-                    messages: [...conv.messages, message],
-                    updatedAt: new Date(),
+            updatedConversations = conversations.map((conv) => {
+              if (conv.id === currentConversationId) {
+                // Auto-name: if this is user's first message and title is default
+                let newTitle = conv.title
+                if (
+                  message.role === "user" &&
+                  conv.messages.filter(m => m.role === "user").length === 0 &&
+                  (conv.title === "新对话" || conv.title === "New Conversation" || !conv.title)
+                ) {
+                  // Use first 50 chars of message as title
+                  newTitle = message.content.slice(0, 50).trim()
+                  if (message.content.length > 50) {
+                    newTitle += "..."
                   }
-                : conv,
-            )
+                }
+
+                return {
+                  ...conv,
+                  title: newTitle,
+                  messages: [...conv.messages, message],
+                  updatedAt: new Date(),
+                }
+              }
+              return conv
+            })
           }
 
           return {
@@ -124,12 +140,12 @@ export const useChatStore = create<ChatState>()(
             updatedConversations = conversations.map((conv) =>
               conv.id === currentConversationId
                 ? {
-                    ...conv,
-                    messages: conv.messages.map((msg) =>
-                      msg.id === id ? { ...msg, content } : msg,
-                    ),
-                    updatedAt: new Date(),
-                  }
+                  ...conv,
+                  messages: conv.messages.map((msg) =>
+                    msg.id === id ? { ...msg, content } : msg,
+                  ),
+                  updatedAt: new Date(),
+                }
                 : conv,
             )
           }
@@ -162,14 +178,14 @@ export const useChatStore = create<ChatState>()(
           conversations: state.conversations.map((conv) =>
             conv.id === currentConversationId
               ? {
-                  ...conv,
-                  messages: conv.messages.map((msg) =>
-                    msg.id === id
-                      ? { ...msg, content: messageToSync.content }
-                      : msg,
-                  ),
-                  updatedAt: new Date(),
-                }
+                ...conv,
+                messages: conv.messages.map((msg) =>
+                  msg.id === id
+                    ? { ...msg, content: messageToSync.content }
+                    : msg,
+                ),
+                updatedAt: new Date(),
+              }
               : conv,
           ),
         }))

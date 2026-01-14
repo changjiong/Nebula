@@ -7,10 +7,12 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import useAuth from "@/hooks/useAuth"
-import { cn } from "@/lib/utils"
 import { AgentList } from "./AgentList"
 import { ConversationList } from "./ConversationList"
 import { NewConversationButton } from "./NewConversationButton"
@@ -23,27 +25,35 @@ export function AppSidebar(): React.JSX.Element {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center relative">
-        <Logo variant="responsive" />
-
-        {/* Custom Trigger */}
-        <Button
-          onClick={toggleSidebar}
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "absolute right-2 top-6 h-6 w-6 text-muted-foreground hidden md:flex",
-            isCollapsed && "left-1/2 -translate-x-1/2 top-14 rotate-180",
-          )}
-        >
-          {isCollapsed ? (
-            <ChevronsRight className="size-4" />
-          ) : (
-            <ChevronsLeft className="size-4" />
-          )}
-        </Button>
+      <SidebarHeader className="px-4 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:items-center">
+        {/* When collapsed: show expand button at top */}
+        {isCollapsed ? (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={toggleSidebar}
+                tooltip="Expand Sidebar"
+                className="h-8 w-8"
+              >
+                <ChevronsRight className="size-4" />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        ) : (
+          <div className="flex items-center justify-between w-full">
+            <Logo variant="responsive" />
+            <Button
+              onClick={toggleSidebar}
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground hidden md:flex"
+            >
+              <ChevronsLeft className="size-4" />
+            </Button>
+          </div>
+        )}
       </SidebarHeader>
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 group-data-[collapsible=icon]:px-1">
         {/* New Conversation Button */}
         <NewConversationButton />
 
@@ -52,8 +62,6 @@ export function AppSidebar(): React.JSX.Element {
 
         {/* Conversation History */}
         <ConversationList />
-
-        {/* No separate Management Group anymore, moved to User Menu */}
       </SidebarContent>
       <SidebarFooter>
         <User user={currentUser} />

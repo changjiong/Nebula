@@ -1,4 +1,4 @@
-import { ChevronRight, MoreHorizontal } from "lucide-react"
+import { ChevronDown, History, MoreHorizontal, MessageSquare } from "lucide-react"
 import { useState } from "react"
 import { HistoryModal } from "@/components/Chat/HistoryModal"
 import {
@@ -7,12 +7,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -25,6 +25,7 @@ export function ConversationList() {
   )
   const switchConversation = useChatStore((state) => state.switchConversation)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(true)
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
@@ -33,39 +34,49 @@ export function ConversationList() {
   }
 
   // Limit displayed items
-  const MAX_ITEMS = 10
+  const MAX_ITEMS = 8
   const displayConversations = conversations.slice(0, MAX_ITEMS)
+  const hasMore = conversations.length > MAX_ITEMS
+
+  // When collapsed, show only the History icon as a group indicator
+  if (isCollapsed) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton onClick={() => setIsModalOpen(true)} tooltip="History">
+            <History className="size-4" />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <HistoryModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      </SidebarMenu>
+    )
+  }
 
   return (
-    <Collapsible defaultOpen className="group/collapsible">
-      <SidebarGroup>
-        <SidebarGroupLabel
-          asChild
-          className="group/label w-full justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
-        >
-          <CollapsibleTrigger>
-            <span>History</span>
-            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
-        <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {/* Timeline Container */}
-              <div
-                className={cn(
-                  "relative ml-3 border-l border-sidebar-border pl-2 my-1",
-                  isCollapsed && "ml-0 border-l-0 pl-0",
-                )}
-              >
+    <>
+      <SidebarMenu>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+          <SidebarMenuItem>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton tooltip="History">
+                <History className="size-4" />
+                <span>History</span>
+                <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <SidebarMenuSub>
                 {displayConversations.map((conv) => (
-                  <SidebarMenuItem key={conv.id}>
-                    <SidebarMenuButton
-                      onClick={() => switchConversation(conv.id)}
+                  <SidebarMenuSubItem key={conv.id}>
+                    <SidebarMenuSubButton
+                      onClick={() => {
+                        console.log("Switching to conversation:", conv.id)
+                        switchConversation(conv.id)
+                      }}
                       isActive={currentConversationId === conv.id}
-                      className="h-8 text-xs mb-1"
-                      tooltip={conv.title || "New Conversation"}
+                      className="text-xs"
                     >
+                      <MessageSquare className="size-3 shrink-0" />
                       <span
                         className={cn(
                           "truncate",
@@ -74,29 +85,28 @@ export function ConversationList() {
                       >
                         {conv.title || "New Conversation"}
                       </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
                 ))}
 
-                {conversations.length > MAX_ITEMS && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
+                {hasMore && (
+                  <SidebarMenuSubItem>
+                    <SidebarMenuSubButton
                       onClick={() => setIsModalOpen(true)}
-                      className="text-xs text-muted-foreground h-7"
-                      tooltip="View All"
+                      className="text-xs text-muted-foreground"
                     >
-                      <MoreHorizontal className="size-3 mr-2" />
-                      <span>View All ({conversations.length})</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                      <MoreHorizontal className="size-3 shrink-0" />
+                      <span>+{conversations.length - MAX_ITEMS} more</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
                 )}
-              </div>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
+              </SidebarMenuSub>
+            </CollapsibleContent>
+          </SidebarMenuItem>
+        </Collapsible>
+      </SidebarMenu>
 
       <HistoryModal open={isModalOpen} onOpenChange={setIsModalOpen} />
-    </Collapsible>
+    </>
   )
 }
