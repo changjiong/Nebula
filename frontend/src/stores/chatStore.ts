@@ -48,6 +48,8 @@ interface ChatState {
   setMessages: (messages: Message[]) => void
   addMessage: (message: Message) => void
   updateMessage: (id: string, content: string) => void
+  updateMessageTransient: (id: string, content: string) => void
+  syncMessageToConversation: (id: string) => void
 
   setAgents: (agents: Agent[]) => void
 
@@ -135,6 +137,38 @@ export const useChatStore = create<ChatState>()(persist((set, get) => ({
         conversations: updatedConversations,
       }
     })
+  },
+
+  updateMessageTransient: (id, content) => {
+    // Only update the 'messages' array (view state), NOT 'conversations' (persisted state)
+    // This avoids triggering localStorage write on every keystroke/token
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === id ? { ...msg, content } : msg
+      ),
+    }))
+  },
+
+  syncMessageToConversation: (id) => {
+    // Sync a specific message from view state to persisted conversations
+    const { currentConversationId, messages } = get()
+    const messageToSync = messages.find(m => m.id === id)
+
+    if (!currentConversationId || !messageToSync) return
+
+    set((state) => ({
+      conversations: state.conversations.map((conv) =>
+        conv.id === currentConversationId
+          ? {
+            ...conv,
+            messages: conv.messages.map((msg) =>
+              msg.id === id ? { ...msg, content: messageToSync.content } : msg
+            ),
+            updatedAt: new Date(),
+          }
+          : conv
+      )
+    }))
   },
 
   setAgents: (agents) => set({ agents }),

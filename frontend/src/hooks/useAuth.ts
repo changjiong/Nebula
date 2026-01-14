@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 
@@ -20,11 +21,27 @@ const useAuth = () => {
   const queryClient = useQueryClient()
   const { showErrorToast } = useCustomToast()
 
-  const { data: user } = useQuery<UserPublic | null, Error>({
+  const { data: user, error } = useQuery<UserPublic | null, Error>({
     queryKey: ["currentUser"],
     queryFn: UsersService.readUserMe,
+    retry: false,
     enabled: isLoggedIn(),
+    meta: {
+      errorMessage: "Failed to load user profile",
+    },
   })
+
+  // Effect to handle auth errors
+  useEffect(() => {
+    if (error) {
+      // If 401 or 404, valid token but invalid session/user -> logout
+      // We can't check status code easily with generic Error, but usually API clients throw specific errors
+      // Assuming any error in reading /me means we should logout in this context or at least stop trying
+      console.warn("User auth error, logging out:", error)
+      localStorage.removeItem("access_token")
+      navigate({ to: "/login" })
+    }
+  }, [error, navigate])
 
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>

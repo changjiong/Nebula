@@ -57,12 +57,16 @@ export function InputBox() {
         })
 
         let buffer = ""
-        const { updateMessage, addThinkingStep } = useChatStore.getState()
+        const { updateMessageTransient, addThinkingStep, syncMessageToConversation } = useChatStore.getState()
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            // Stream finished, sync the final message to persistent storage
+            syncMessageToConversation(assistantMessageId)
+            break
+          }
 
           buffer += decoder.decode(value, { stream: true })
           const lines = buffer.split("\n")
@@ -75,7 +79,10 @@ export function InputBox() {
 
             if (line.startsWith("data: ")) {
               const data = line.slice(6).trim()
-              if (data === "[DONE]") break
+              if (data === "[DONE]") {
+                syncMessageToConversation(assistantMessageId)
+                break
+              }
 
               try {
                 // Try to parse as JSON event
@@ -94,21 +101,24 @@ export function InputBox() {
                 } else if (event.type === "message") {
                   // Accumulate message content
                   assistantMessage += event.data.content
-                  updateMessage(assistantMessageId, assistantMessage)
+                  // Use transient update to avoid expensive persist on every chunk
+                  updateMessageTransient(assistantMessageId, assistantMessage)
                 } else if (event.type === "error") {
                   // Handle error
                   console.error("Stream error:", event.data)
                   assistantMessage += `\n[错误: ${event.data.message}]`
-                  updateMessage(assistantMessageId, assistantMessage)
+                  updateMessageTransient(assistantMessageId, assistantMessage)
                 }
               } catch (e) {
                 // Fallback: treat as plain text (backward compatibility)
                 assistantMessage += data
-                updateMessage(assistantMessageId, assistantMessage)
+                updateMessageTransient(assistantMessageId, assistantMessage)
               }
             }
           }
         }
+        // Ensure sync happens if loop exits for other reasons
+        syncMessageToConversation(assistantMessageId)
       }
     } catch (error) {
       console.error("Failed to send message:", error)
