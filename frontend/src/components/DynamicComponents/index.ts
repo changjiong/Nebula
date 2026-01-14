@@ -1,15 +1,16 @@
 // Dynamic Components Registry
 // Import all components
-import { EntityCard } from "./EntityCard"
-import { ScoreCard } from "./ScoreCard"
-import { DataTable } from "./DataTable"
-import { CandidateList } from "./CandidateList"
-import { RelationGraph } from "./RelationGraph"
-import { TreeView } from "./TreeView"
-import { MarkdownContent } from "./MarkdownContent"
+
 import { ActionButtons } from "./ActionButtons"
-import { RadarChart } from "./RadarChart"
+import { CandidateList } from "./CandidateList"
 import { ComponentRenderer, registerComponent } from "./ComponentRenderer"
+import { DataTable } from "./DataTable"
+import { EntityCard } from "./EntityCard"
+import { MarkdownContent } from "./MarkdownContent"
+import { RadarChart } from "./RadarChart"
+import { RelationGraph } from "./RelationGraph"
+import { ScoreCard } from "./ScoreCard"
+import { TreeView } from "./TreeView"
 
 // Register all components
 registerComponent("entity_card", EntityCard)
@@ -28,14 +29,13 @@ registerComponent("radar_chart", RadarChart)
 // Export
 export { ComponentRenderer, registerComponent }
 export {
-    EntityCard,
-    ScoreCard,
-    DataTable,
-    CandidateList,
-    RelationGraph,
-    TreeView,
-    MarkdownContent,
-    ActionButtons,
-    RadarChart,
+  EntityCard,
+  ScoreCard,
+  DataTable,
+  CandidateList,
+  RelationGraph,
+  TreeView,
+  MarkdownContent,
+  ActionButtons,
+  RadarChart,
 }
-

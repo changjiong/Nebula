@@ -12,7 +12,7 @@ export function MessageList() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, thinkingSteps])
+  }, [])
 
   // Find the last assistant message to insert thinking before it
   const lastAssistantIndex = messages

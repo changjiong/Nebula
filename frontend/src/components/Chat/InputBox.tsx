@@ -1,12 +1,34 @@
-import { SendIcon } from "lucide-react"
+import {
+  ChevronDown,
+  Globe,
+  Image as ImageIcon,
+  Paperclip,
+  Plus,
+  SendIcon,
+  Square,
+} from "lucide-react"
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
+
+// Mock models
+const MODELS = [
+  { id: "grok-2", name: "Grok 2", icon: Globe },
+  { id: "grok-2-mini", name: "Grok 2 mini", icon: Globe },
+]
 
 export function InputBox() {
   const [input, setInput] = useState("")
-  const { addMessage, isConnecting } = useChatStore()
+  const [selectedModel, setSelectedModel] = useState(MODELS[0])
+  const { addMessage, isConnecting, setIsConnecting } = useChatStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSubmit = async (): Promise<void> => {
@@ -22,6 +44,13 @@ export function InputBox() {
     addMessage(userMessage)
     setInput("")
 
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+    }
+
+    setIsConnecting(true)
+
     // Call the backend streaming endpoint
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
@@ -34,6 +63,7 @@ export function InputBox() {
         body: JSON.stringify({
           role: "user",
           content: input,
+          model: selectedModel.id, // Pass model param if supported
         }),
       })
 
@@ -57,7 +87,11 @@ export function InputBox() {
         })
 
         let buffer = ""
-        const { updateMessageTransient, addThinkingStep, syncMessageToConversation } = useChatStore.getState()
+        const {
+          updateMessageTransient,
+          addThinkingStep,
+          syncMessageToConversation,
+        } = useChatStore.getState()
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -109,7 +143,7 @@ export function InputBox() {
                   assistantMessage += `\n[错误: ${event.data.message}]`
                   updateMessageTransient(assistantMessageId, assistantMessage)
                 }
-              } catch (e) {
+              } catch (_e) {
                 // Fallback: treat as plain text (backward compatibility)
                 assistantMessage += data
                 updateMessageTransient(assistantMessageId, assistantMessage)
@@ -128,7 +162,14 @@ export function InputBox() {
         content: "Sorry, I encountered an error. Please try again.",
         timestamp: Date.now(),
       })
+    } finally {
+      setIsConnecting(false)
     }
+  }
+
+  const handleStop = () => {
+    // Placeholder for abort logic (needs AbortController impl)
+    setIsConnecting(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -140,83 +181,104 @@ export function InputBox() {
 
   const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value)
+    // Auto-resize
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
   }
 
   return (
-    <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="max-w-3xl mx-auto p-4">
-        <div className="flex items-end gap-2 rounded-2xl border border-border/50 bg-background p-2 shadow-sm hover:border-border transition-colors">
-          {/* Plus button (placeholder for attachments) */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 h-9 w-9 rounded-xl"
-            disabled
-            title="附件功能即将推出"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </Button>
+    <div className="w-full relative">
+      {" "}
+      {/* Removed sticky positioning here, let parent handle layout */}
+      <div className="flex flex-col gap-2 rounded-2xl border bg-background p-3 shadow-md focus-within:ring-1 focus-within:ring-ring transition-all">
+        {/* Input Area */}
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask anything..."
+          className="flex-1 min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/50"
+          rows={1}
+        />
 
-          {/* Input area */}
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="我能为你做什么..."
-            className="flex-1 min-h-[2.5rem] max-h-32 resize-none border-0 bg-transparent px-2 py-2 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
-            rows={1}
-          />
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            {/* Attachment Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="size-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem>
+                  <Paperclip className="mr-2 h-4 w-4" />
+                  Upload File
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Upload Image
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Function buttons group */}
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Image button (placeholder) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-              disabled
-              title="图片功能即将推出"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {/* Model Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs font-medium text-muted-foreground hover:text-foreground gap-1 px-2"
+                >
+                  {selectedModel.name}
+                  <ChevronDown className="size-3 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {MODELS.map((model) => (
+                  <DropdownMenuItem
+                    key={model.id}
+                    onClick={() => setSelectedModel(model)}
+                  >
+                    <span>{model.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isConnecting ? (
+              <Button
+                onClick={handleStop}
+                size="icon"
+                className="h-8 w-8 rounded-full bg-foreground text-background hover:bg-foreground/90"
               >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-            </Button>
-
-            {/* Send button */}
-            <Button
-              onClick={handleSubmit}
-              disabled={!input.trim() || isConnecting}
-              size="icon"
-              className="h-9 w-9 rounded-xl"
-            >
-              <SendIcon className="h-4 w-4" />
-            </Button>
+                <Square className="size-3 fill-current" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={!input.trim()}
+                size="icon"
+                className={cn(
+                  "h-8 w-8 rounded-full transition-all",
+                  input.trim()
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                <SendIcon className="size-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -1,86 +1,102 @@
-import { Clock, History, Search } from "lucide-react"
-import { useState, useMemo } from "react"
-
+import { ChevronRight, MoreHorizontal } from "lucide-react"
+import { useState } from "react"
+import { HistoryModal } from "@/components/Chat/HistoryModal"
 import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { Input } from "@/components/ui/input"
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 
 export function ConversationList() {
-    const conversations = useChatStore((state) => state.conversations)
-    const currentConversationId = useChatStore(
-        (state) => state.currentConversationId,
-    )
-    const switchConversation = useChatStore((state) => state.switchConversation)
+  const conversations = useChatStore((state) => state.conversations)
+  const currentConversationId = useChatStore(
+    (state) => state.currentConversationId,
+  )
+  const switchConversation = useChatStore((state) => state.switchConversation)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
-    const [searchQuery, setSearchQuery] = useState("")
+  if (conversations.length === 0) {
+    return null
+  }
 
-    // Filter conversations based on search query
-    const filteredConversations = useMemo(() => {
-        if (!searchQuery.trim()) {
-            return conversations
-        }
-        const query = searchQuery.toLowerCase()
-        return conversations.filter((conv) =>
-            (conv.title || "新对话").toLowerCase().includes(query)
-        )
-    }, [conversations, searchQuery])
+  // Limit displayed items
+  const MAX_ITEMS = 10
+  const displayConversations = conversations.slice(0, MAX_ITEMS)
 
-    if (conversations.length === 0) {
-        return null
-    }
-
-    return (
-        <Collapsible defaultOpen className="mt-4">
-            <CollapsibleTrigger className="flex items-center gap-2 w-full px-2 py-1.5 text-sm font-medium hover:bg-accent rounded-md">
-                <History className="h-4 w-4" />
-                <span>历史对话</span>
-                {conversations.length > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                        {conversations.length}
-                    </span>
+  return (
+    <Collapsible defaultOpen className="group/collapsible">
+      <SidebarGroup>
+        <SidebarGroupLabel
+          asChild
+          className="group/label w-full justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
+        >
+          <CollapsibleTrigger>
+            <span>History</span>
+            <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {/* Timeline Container */}
+              <div
+                className={cn(
+                  "relative ml-3 border-l border-sidebar-border pl-2 my-1",
+                  isCollapsed && "ml-0 border-l-0 pl-0",
                 )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-1 space-y-1">
-                {/* Search input */}
-                {conversations.length > 3 && (
-                    <div className="relative px-1 mb-2">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                            type="text"
-                            placeholder="搜索对话..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="h-8 pl-8 text-xs"
-                        />
-                    </div>
-                )}
+              >
+                {displayConversations.map((conv) => (
+                  <SidebarMenuItem key={conv.id}>
+                    <SidebarMenuButton
+                      onClick={() => switchConversation(conv.id)}
+                      isActive={currentConversationId === conv.id}
+                      className="h-8 text-xs mb-1"
+                      tooltip={conv.title || "New Conversation"}
+                    >
+                      <span
+                        className={cn(
+                          "truncate",
+                          currentConversationId === conv.id && "font-semibold",
+                        )}
+                      >
+                        {conv.title || "New Conversation"}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
 
-                {/* Conversation list */}
-                {filteredConversations.length > 0 ? (
-                    filteredConversations.map((conv) => (
-                        <div
-                            key={conv.id}
-                            onClick={() => switchConversation(conv.id)}
-                            className={cn(
-                                "cursor-pointer p-2 rounded-md text-sm flex items-start gap-2 hover:bg-accent",
-                                currentConversationId === conv.id && "bg-accent",
-                            )}
-                        >
-                            <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                            <span className="truncate">{conv.title || "新对话"}</span>
-                        </div>
-                    ))
-                ) : (
-                    <div className="px-2 py-4 text-xs text-muted-foreground text-center">
-                        未找到匹配的对话
-                    </div>
+                {conversations.length > MAX_ITEMS && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setIsModalOpen(true)}
+                      className="text-xs text-muted-foreground h-7"
+                      tooltip="View All"
+                    >
+                      <MoreHorizontal className="size-3 mr-2" />
+                      <span>View All ({conversations.length})</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 )}
-            </CollapsibleContent>
-        </Collapsible>
-    )
+              </div>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+
+      <HistoryModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+    </Collapsible>
+  )
 }

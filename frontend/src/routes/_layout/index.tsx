@@ -17,6 +17,8 @@ export const Route = createFileRoute("/_layout/")({
   }),
 })
 
+// ... imports unchanged
+
 function ChatPage(): React.JSX.Element {
   const { messages } = useChatStore()
 
@@ -24,34 +26,39 @@ function ChatPage(): React.JSX.Element {
   useSSE(null)
 
   if (messages.length === 0) {
-    // Empty state: centered layout with input in middle
+    // New Task View: Centered, clean, "Grok-style"
     return (
-      <div className="flex flex-col h-full items-center justify-center p-8">
-        <div className="w-full max-w-2xl">
-          <h1 className="text-3xl font-semibold text-center mb-2">
-            我能为你做什么？
-          </h1>
-          <p className="text-muted-foreground text-center mb-8">
-            选择一个功能开始，或直接输入
-          </p>
+      <div className="flex flex-col h-full items-center justify-center p-4 md:p-8">
+        <div className="w-full max-w-3xl flex flex-col gap-8 animated-in fade-in duration-500 slide-in-from-bottom-4">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+              What can I help you with?
+            </h1>
+          </div>
 
-          {/* Input box in center for empty state */}
-          <div className="mb-12">
+          {/* Input Box */}
+          <div className="w-full">
             <InputBox />
           </div>
 
-          {/* Agent cards below */}
-          <AgentCards />
+          {/* Agent/Suggestions Cards */}
+          <div className="w-full">
+            <AgentCards />
+          </div>
         </div>
       </div>
     )
   }
 
-  // Conversation state: standard layout with input at bottom
+  // Active Conversation: Message list with pinned bottom input
   return (
-    <div className="flex flex-col h-full">
-      <MessageList />
-      <InputBox />
+    <div className="flex flex-col h-full relative">
+      <div className="flex-1 overflow-hidden">
+        <MessageList />
+      </div>
+      <div className="p-4 pt-0 mx-auto w-full max-w-3xl">
+        <InputBox />
+      </div>
     </div>
   )
 }

@@ -1,39 +1,47 @@
-import { Briefcase, Users } from "lucide-react"
+import { ChevronsLeft, ChevronsRight } from "lucide-react"
 
-import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
+import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import useAuth from "@/hooks/useAuth"
+import { cn } from "@/lib/utils"
 import { AgentList } from "./AgentList"
 import { ConversationList } from "./ConversationList"
-import { type Item, Main } from "./Main"
 import { NewConversationButton } from "./NewConversationButton"
 import { User } from "./User"
 
-const baseItems: Item[] = [
-  { icon: Briefcase, title: "Agents", path: "/agents" },
-  { icon: Users, title: "Tasks", path: "/tasks" },
-]
-
 export function AppSidebar(): React.JSX.Element {
   const { user: currentUser } = useAuth()
-
-  const items = currentUser?.is_superuser
-    ? [...baseItems, { icon: Users, title: "Admin", path: "/admin" }]
-    : baseItems
+  const { state, toggleSidebar } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center">
+      <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center relative">
         <Logo variant="responsive" />
+
+        {/* Custom Trigger */}
+        <Button
+          onClick={toggleSidebar}
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "absolute right-2 top-6 h-6 w-6 text-muted-foreground hidden md:flex",
+            isCollapsed && "left-1/2 -translate-x-1/2 top-14 rotate-180",
+          )}
+        >
+          {isCollapsed ? (
+            <ChevronsRight className="size-4" />
+          ) : (
+            <ChevronsLeft className="size-4" />
+          )}
+        </Button>
       </SidebarHeader>
       <SidebarContent className="px-2">
         {/* New Conversation Button */}
@@ -45,16 +53,9 @@ export function AppSidebar(): React.JSX.Element {
         {/* Conversation History */}
         <ConversationList />
 
-        {/* Management Navigation */}
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel>管理</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <Main items={items} />
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* No separate Management Group anymore, moved to User Menu */}
       </SidebarContent>
       <SidebarFooter>
-        <SidebarAppearance />
         <User user={currentUser} />
       </SidebarFooter>
     </Sidebar>

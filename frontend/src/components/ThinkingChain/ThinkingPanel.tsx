@@ -15,7 +15,9 @@ export function ThinkingPanel() {
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            role="img"
           >
+            <title>Thinking Process</title>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
