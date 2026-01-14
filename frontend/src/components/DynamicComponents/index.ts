@@ -8,6 +8,7 @@ import { RelationGraph } from "./RelationGraph"
 import { TreeView } from "./TreeView"
 import { MarkdownContent } from "./MarkdownContent"
 import { ActionButtons } from "./ActionButtons"
+import { RadarChart } from "./RadarChart"
 import { ComponentRenderer, registerComponent } from "./ComponentRenderer"
 
 // Register all components
@@ -22,6 +23,7 @@ registerComponent("relation_graph", RelationGraph)
 registerComponent("tree_view", TreeView)
 registerComponent("markdown_content", MarkdownContent)
 registerComponent("action_buttons", ActionButtons)
+registerComponent("radar_chart", RadarChart)
 
 // Export
 export { ComponentRenderer, registerComponent }
@@ -34,5 +36,6 @@ export {
     TreeView,
     MarkdownContent,
     ActionButtons,
+    RadarChart,
 }
 

@@ -1,0 +1,66 @@
+# Kechuang Evaluator Agent Configuration
+# 科创评价 Agent 配置文件
+
+name: kechuang_evaluator
+version: "1.0.0"
+description: "科创评价 Agent - 对企业进行科创五维评分（创新力/成长性/稳定性/合作度/综合）"
+
+# Input schema definition
+input:
+  - name: enterprise_name
+    type: string
+    required: false
+    description: "企业名称"
+  - name: credit_code
+    type: string
+    required: false
+    description: "统一社会信用代码"
+  - name: enterprise_id
+    type: string
+    required: false
+    description: "企业ID（如有）"
+  - name: include_details
+    type: boolean
+    required: false
+    default: true
+    description: "是否返回详细评分依据"
+
+# Output schema definition
+output:
+  - name: scores
+    type: object
+    description: "五维评分对象，包含 innovation/growth/stability/cooperation/overall"
+  - name: radar_data
+    type: array
+    description: "雷达图数据格式，用于前端可视化"
+  - name: analysis
+    type: string
+    description: "综合分析说明"
+  - name: rank
+    type: string
+    description: "评级等级：A/B/C/D"
+
+# External service configurations
+services:
+  - name: model_factory
+    model: kechuang_score_v2
+    description: "科创评分模型"
+    timeout: 15
+    retry_count: 3
+
+  - name: data_warehouse
+    endpoint: /api/v1/enterprise/features
+    method: POST
+    description: "企业特征数据接口"
+    timeout: 30
+    retry_count: 2
+
+# Additional metadata
+metadata:
+  category: "risk_evaluation"
+  tags:
+    - kechuang
+    - scoring
+    - evaluation
+  author: "Agent Portal Team"
+  created_at: "2026-01-14"
