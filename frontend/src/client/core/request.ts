@@ -81,18 +81,8 @@ const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
 	return options.query ? url + getQueryString(options.query) : url;
 };
 
-export const getFormData = (options: ApiRequestOptions): FormData | URLSearchParams | undefined => {
+export const getFormData = (options: ApiRequestOptions): FormData | undefined => {
 	if (options.formData) {
-		if (options.mediaType === 'application/x-www-form-urlencoded') {
-			const queryParams = new URLSearchParams();
-			Object.entries(options.formData)
-				.filter(([, value]) => value !== undefined && value !== null)
-				.forEach(([key, value]) => {
-					queryParams.append(key, String(value));
-				});
-			return queryParams;
-		}
-
 		const formData = new FormData();
 
 		const process = (key: string, value: unknown) => {
@@ -144,11 +134,11 @@ export const getHeaders = async <T>(config: OpenAPIConfig, options: ApiRequestOp
 		...additionalHeaders,
 		...options.headers,
 	})
-		.filter(([, value]) => value !== undefined && value !== null)
-		.reduce((headers, [key, value]) => ({
-			...headers,
-			[key]: String(value),
-		}), {} as Record<string, string>);
+	.filter(([, value]) => value !== undefined && value !== null)
+	.reduce((headers, [key, value]) => ({
+		...headers,
+		[key]: String(value),
+	}), {} as Record<string, string>);
 
 	if (isStringWithValue(token)) {
 		headers['Authorization'] = `Bearer ${token}`;
@@ -166,7 +156,7 @@ export const getHeaders = async <T>(config: OpenAPIConfig, options: ApiRequestOp
 			headers['Content-Type'] = options.body.type || 'application/octet-stream';
 		} else if (isString(options.body)) {
 			headers['Content-Type'] = 'text/plain';
-		} else if (!isFormData(options.body) && !(options.body instanceof URLSearchParams)) {
+		} else if (!isFormData(options.body)) {
 			headers['Content-Type'] = 'application/json';
 		}
 	} else if (options.formData !== undefined) {
@@ -190,7 +180,7 @@ export const sendRequest = async <T>(
 	options: ApiRequestOptions<T>,
 	url: string,
 	body: unknown,
-	formData: FormData | URLSearchParams | undefined,
+	formData: FormData | undefined,
 	headers: Record<string, string>,
 	onCancel: OnCancel,
 	axiosClient: AxiosInstance

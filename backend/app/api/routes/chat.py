@@ -1,12 +1,12 @@
 import uuid
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.core.llm import stream_chat_completion
 from app.models import (
     ChatMessage,
     Conversation,
@@ -78,7 +78,7 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
     """
     try:
         from app.core.llm_thinking import stream_chat_with_thinking
-        
+
         # Prepare messages for LLM
         messages = [
             {
@@ -90,11 +90,11 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
                 "content": input_text,
             },
         ]
-        
+
         # Stream from LLM with thinking chain
         async for sse_event in stream_chat_with_thinking(messages, enable_thinking=True):
             yield sse_event
-        
+
     except Exception as e:
         import json
         error_event = {
@@ -116,7 +116,7 @@ def stream_chat(
     Stream AI chat response using DeepSeek.
     """
     input_text = _message_in.content
-    
+
     return StreamingResponse(
         ai_stream_generator(input_text),
         media_type="text/event-stream",

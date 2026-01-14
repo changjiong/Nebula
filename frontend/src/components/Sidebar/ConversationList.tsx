@@ -1,4 +1,8 @@
-import { ChevronDown, History, MoreHorizontal, MessageSquare } from "lucide-react"
+import {
+  ChevronDown,
+  History,
+  MoreHorizontal,
+} from "lucide-react"
 import { useState } from "react"
 import { HistoryModal } from "@/components/Chat/HistoryModal"
 import {
@@ -11,11 +15,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { cn } from "@/lib/utils"
+import { SidebarConversationItem } from "./SidebarConversationItem"
 import { useChatStore } from "@/stores/chatStore"
 
 export function ConversationList() {
@@ -29,9 +33,7 @@ export function ConversationList() {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  if (conversations.length === 0) {
-    return null
-  }
+
 
   // Limit displayed items
   const MAX_ITEMS = 8
@@ -43,7 +45,10 @@ export function ConversationList() {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={() => setIsModalOpen(true)} tooltip="History">
+          <SidebarMenuButton
+            onClick={() => setIsModalOpen(true)}
+            tooltip="History"
+          >
             <History className="size-4" />
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -55,7 +60,11 @@ export function ConversationList() {
   return (
     <>
       <SidebarMenu>
-        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+        <Collapsible
+          open={isOpen}
+          onOpenChange={setIsOpen}
+          className="group/collapsible"
+        >
           <SidebarMenuItem>
             <CollapsibleTrigger asChild>
               <SidebarMenuButton tooltip="History">
@@ -66,34 +75,29 @@ export function ConversationList() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {displayConversations.map((conv) => (
-                  <SidebarMenuSubItem key={conv.id}>
-                    <SidebarMenuSubButton
-                      onClick={() => {
-                        console.log("Switching to conversation:", conv.id)
-                        switchConversation(conv.id)
-                      }}
-                      isActive={currentConversationId === conv.id}
-                      className="text-xs"
-                    >
-                      <MessageSquare className="size-3 shrink-0" />
-                      <span
-                        className={cn(
-                          "truncate",
-                          currentConversationId === conv.id && "font-semibold",
-                        )}
-                      >
-                        {conv.title || "New Conversation"}
-                      </span>
-                    </SidebarMenuSubButton>
+                {displayConversations.length === 0 ? (
+                  <SidebarMenuSubItem>
+                    <span className="flex w-full cursor-default select-none items-center rounded-md p-2 text-sm text-muted-foreground">
+                      No history available
+                    </span>
                   </SidebarMenuSubItem>
-                ))}
+                ) : (
+                  displayConversations.map((conv) => (
+                    <SidebarMenuSubItem key={conv.id}>
+                      <SidebarConversationItem
+                        conversation={conv}
+                        isActive={currentConversationId === conv.id}
+                        onSelect={switchConversation}
+                      />
+                    </SidebarMenuSubItem>
+                  ))
+                )}
 
                 {hasMore && (
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton
                       onClick={() => setIsModalOpen(true)}
-                      className="text-xs text-muted-foreground"
+                      className="text-sm text-muted-foreground"
                     >
                       <MoreHorizontal className="size-3 shrink-0" />
                       <span>+{conversations.length - MAX_ITEMS} more</span>

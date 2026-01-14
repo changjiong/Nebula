@@ -105,11 +105,11 @@ export type TaskPublic = {
     status: string;
     processed_items: number;
     error_log: ({
-    [key: string]: unknown;
-} | null);
+        [key: string]: unknown;
+    } | null);
     result: ({
-    [key: string]: unknown;
-} | null);
+        [key: string]: unknown;
+    } | null);
     created_at: string;
     finished_at: (string | null);
 };
@@ -142,6 +142,7 @@ export type UserPublic = {
     is_active?: boolean;
     is_superuser?: boolean;
     full_name?: (string | null);
+    avatar_url?: (string | null);
     id: string;
 };
 
@@ -167,6 +168,7 @@ export type UserUpdate = {
 export type UserUpdateMe = {
     full_name?: (string | null);
     email?: (string | null);
+    avatar_url?: (string | null);
 };
 
 export type ValidationError = {

@@ -1,7 +1,9 @@
+import shutil
 import uuid
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import col, delete, func, select
 
 from app import crud
@@ -115,6 +117,78 @@ def update_password_me(
     session.add(current_user)
     session.commit()
     return Message(message="Password updated successfully")
+
+
+@router.post("/me/avatar", response_model=UserPublic)
+def upload_avatar_me(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+) -> Any:
+    """
+    Upload user avatar.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file selected")
+
+    # Ensure static directory exists (just in case, though main.py handles it)
+    static_dir = Path("static/avatars")
+    static_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix
+    if not file_ext:
+        file_ext = ".jpg" # Default fallback
+
+    file_name = f"{current_user.id}_{uuid.uuid4()}{file_ext}"
+    file_path = static_dir / file_name
+
+    # Save file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Update user profile
+    # Remove old avatar if exists (optional cleanup)
+    if current_user.avatar_url:
+        old_avatar_path = Path(current_user.avatar_url.lstrip("/"))
+        if old_avatar_path.exists() and "avatars" in str(old_avatar_path):
+             try:
+                 old_avatar_path.unlink()
+             except Exception:
+                 pass # Ignore cleanup errors
+
+    current_user.avatar_url = f"/static/avatars/{file_name}"
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
+
+
+@router.delete("/me/avatar", response_model=UserPublic)
+def delete_avatar_me(session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Delete user avatar.
+    """
+    if current_user.avatar_url:
+        # Try to delete file from disk
+        path_str = current_user.avatar_url
+        if path_str.startswith("/"):
+            path_str = path_str[1:]
+
+        file_path = Path(path_str)
+        if file_path.exists() and "avatars" in str(file_path):
+            try:
+                file_path.unlink()
+            except Exception:
+                pass
+
+        current_user.avatar_url = None
+        session.add(current_user)
+        session.commit()
+        session.refresh(current_user)
+
+    return current_user
 
 
 @router.get("/me", response_model=UserPublic)

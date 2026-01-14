@@ -11,8 +11,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubItem,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAgentStore } from "@/stores/agentStore"
@@ -60,7 +60,11 @@ export function AgentList() {
 
   return (
     <SidebarMenu>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
+      <Collapsible
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        className="group/collapsible"
+      >
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton tooltip="Agents">
@@ -78,7 +82,9 @@ export function AgentList() {
                     className="text-sm"
                   >
                     <span className="shrink-0">
-                      {agent.icon || categoryIcons[agent.category || "default"] || "🤖"}
+                      {agent.icon ||
+                        categoryIcons[agent.category || "default"] ||
+                        "🤖"}
                     </span>
                     <span className="truncate">{agent.name}</span>
                   </SidebarMenuSubButton>

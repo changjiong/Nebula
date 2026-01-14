@@ -10,18 +10,19 @@ Supports multiple providers:
 
 import json
 import os
-from typing import AsyncGenerator, Literal
+from collections.abc import AsyncGenerator
+from typing import Literal
 
 import httpx
-from app.core.config import settings
 
+from app.core.config import settings
 
 ThinkingStepStatus = Literal["pending", "in-progress", "completed", "failed"]
 
 
 class ThinkingStep:
     """Represents a single step in the thinking chain."""
-    
+
     def __init__(
         self,
         step_id: str,
@@ -33,7 +34,7 @@ class ThinkingStep:
         self.title = title
         self.status = status
         self.content = content
-    
+
     def to_sse_event(self) -> str:
         """Convert to SSE event format for frontend."""
         data = {
@@ -65,10 +66,10 @@ async def stream_chat_with_thinking(
     api_key = os.getenv("DEEPSEEK_API_KEY") or settings.DEEPSEEK_API_KEY
     api_base = os.getenv("DEEPSEEK_API_BASE") or settings.DEEPSEEK_API_BASE
     model_name = model or settings.LLM_MODEL
-    
+
     # Check if we should use DeepSeek R1 (reasoning model)
     use_deepseek_r1 = "reasoner" in model_name.lower() or "r1" in model_name.lower()
-    
+
     if api_key == "changethis":
         # Demo mode with simulated thinking
         if enable_thinking:
@@ -78,34 +79,34 @@ async def stream_chat_with_thinking(
                 ThinkingStep("step-2", "分析关键信息", "pending"),
                 ThinkingStep("step-3", "构建回答", "pending"),
             ]
-            
+
             # Step 1
             steps[0].status = "in-progress"
             steps[0].content = f"用户问题: {messages[-1]['content'][:50]}..."
             yield steps[0].to_sse_event()
-            
+
             await __import__("asyncio").sleep(0.5)
             steps[0].status = "completed"
             yield steps[0].to_sse_event()
-            
+
             # Step 2
             steps[1].status = "in-progress"
             steps[1].content = "提取关键词和意图"
             yield steps[1].to_sse_event()
-            
+
             await __import__("asyncio").sleep(0.5)
             steps[1].status = "completed"
             yield steps[1].to_sse_event()
-            
+
             # Step 3
             steps[2].status = "in-progress"
             steps[2].content = "生成结构化回答"
             yield steps[2].to_sse_event()
-            
+
             await __import__("asyncio").sleep(0.5)
             steps[2].status = "completed"
             yield steps[2].to_sse_event()
-        
+
         # Mock response content
         mock_response = (
             "这是演示模式的回答。"
@@ -118,10 +119,10 @@ async def stream_chat_with_thinking(
             }
             yield f"data: {json.dumps(content_event)}\n\n"
             await __import__("asyncio").sleep(0.1)
-        
+
         yield "data: [DONE]\n\n"
         return
-    
+
     # Real API call
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
@@ -132,7 +133,7 @@ async def stream_chat_with_thinking(
                 "stream": True,
                 "temperature": temperature,
             }
-            
+
             # Add thinking simulation for standard models
             if enable_thinking and not use_deepseek_r1:
                 # Step 1: Preparing
@@ -141,15 +142,15 @@ async def stream_chat_with_thinking(
                 )
                 yield step1.to_sse_event()
                 await __import__("asyncio").sleep(0.3)
-                
+
                 # Complete step 1
                 step1.status = "completed"
                 yield step1.to_sse_event()
-                
+
                 # Step 2: Generating (will be updated after streaming)
                 step2 = ThinkingStep("api-2", "正在生成回答...", "in-progress")
                 yield step2.to_sse_event()
-            
+
             async with client.stream(
                 "POST",
                 f"{api_base}/chat/completions",
@@ -160,23 +161,23 @@ async def stream_chat_with_thinking(
                 json=payload,
             ) as response:
                 response.raise_for_status()
-                
+
                 has_content = False
                 async for line in response.aiter_lines():
                     if not line.strip():
                         continue
-                    
+
                     if line.startswith("data: "):
                         data = line[6:]
-                        
+
                         if data == "[DONE]":
                             break
-                        
+
                         try:
                             chunk = json.loads(data)
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             content = delta.get("content", "")
-                            
+
                             # Check for reasoning content (DeepSeek R1)
                             reasoning = delta.get("reasoning_content", "")
                             if reasoning and enable_thinking:
@@ -191,7 +192,7 @@ async def stream_chat_with_thinking(
                                     }
                                 }
                                 yield f"data: {json.dumps(reasoning_event)}\n\n"
-                            
+
                             if content:
                                 has_content = True
                                 content_event = {
@@ -201,14 +202,14 @@ async def stream_chat_with_thinking(
                                 yield f"data: {json.dumps(content_event)}\n\n"
                         except json.JSONDecodeError:
                             continue
-                
+
                 # Complete thinking step after streaming is done
                 if enable_thinking and not use_deepseek_r1 and has_content:
                     step2_complete = ThinkingStep("api-2", "回答生成完成", "completed")
                     yield step2_complete.to_sse_event()
-                
+
                 yield "data: [DONE]\n\n"
-                
+
         except httpx.HTTPStatusError as e:
             error_event = {
                 "type": "error",
@@ -246,5 +247,5 @@ async def stream_chat_completion(
                 event = json.loads(data)
                 if event.get("type") == "message":
                     yield event["data"]["content"]
-            except:
+            except Exception:
                 continue

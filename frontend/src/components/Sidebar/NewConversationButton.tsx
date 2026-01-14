@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router"
 import { Home, Search } from "lucide-react"
 import { useState } from "react"
 
@@ -10,20 +11,21 @@ import {
 import { useChatStore } from "@/stores/chatStore"
 
 export function NewConversationButton() {
-  const createNewConversation = useChatStore(
-    (state) => state.createNewConversation,
-  )
+  const resetToHome = useChatStore((state) => state.resetToHome)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const navigate = useNavigate()
+
+  const handleHomeClick = () => {
+    resetToHome()
+    navigate({ to: "/" })
+  }
 
   return (
     <>
       <SidebarMenu>
         {/* Home - creates new conversation */}
         <SidebarMenuItem>
-          <SidebarMenuButton
-            onClick={createNewConversation}
-            tooltip="Home"
-          >
+          <SidebarMenuButton onClick={handleHomeClick} tooltip="Home">
             <Home className="size-4" />
             <span>Home</span>
           </SidebarMenuButton>

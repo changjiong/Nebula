@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from sqlalchemy import JSON
 from sqlmodel import Column, Field, SQLModel
@@ -16,10 +15,10 @@ class AgentBase(SQLModel):
     is_active: bool = Field(default=True)
     # Use sa_column for JSON storage of tools configuration
     tools: list[str] | None = Field(default=None, sa_column=Column(JSON))
-    
+
     # Category for grouping (e.g., "entity_resolution", "risk_evaluation")
     category: str = Field(default="default", max_length=100)
-    
+
     # Permission configuration (per implementation_plan.md section 10)
     # visibility: "public" = all users, "department" = filtered by department, "role" = filtered by role
     visibility: str = Field(default="public", max_length=20)
@@ -27,7 +26,7 @@ class AgentBase(SQLModel):
     allowed_departments: list[str] | None = Field(default=None, sa_column=Column(JSON))
     # List of role names that can access this agent (only if visibility="role")
     allowed_roles: list[str] | None = Field(default=None, sa_column=Column(JSON))
-    
+
     # Execution mode: "realtime" for SSE, "batch" for async tasks
     execution_mode: str = Field(default="realtime", max_length=20)
 

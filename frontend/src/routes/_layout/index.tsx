@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import * as React from "react"
 
 import { AgentCards } from "@/components/Chat/AgentCards"
 import { InputBox } from "@/components/Chat/InputBox"
@@ -25,10 +26,19 @@ function ChatPage(): React.JSX.Element {
   // Initialize SSE connection (currently disabled with null for dev/mock)
   useSSE(null)
 
+  // Expose mock data injection for testing
+  React.useEffect(() => {
+    // @ts-expect-error
+    window.injectMockData = async () => {
+      const { injectMockData } = await import("@/lib/mockData")
+      injectMockData()
+    }
+  }, [])
+
   if (messages.length === 0) {
     // New Task View: Centered, clean, "Grok-style"
     return (
-      <div className="flex flex-col h-full items-center justify-center p-4 md:p-8">
+      <div className="flex flex-col flex-1 items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-3xl flex flex-col gap-8 animated-in fade-in duration-500 slide-in-from-bottom-4">
           <div className="text-center space-y-2">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">

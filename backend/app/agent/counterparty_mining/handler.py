@@ -6,7 +6,7 @@ Counterparty Mining Handler
 
 import logging
 import random
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 

@@ -12,7 +12,7 @@ import {
 
 import { useTheme } from "@/components/theme-provider"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +68,14 @@ export function User({ user }: { user: any }) {
               tooltip={user?.email}
             >
               <Avatar className="size-8 shrink-0">
+                <AvatarImage
+                  src={
+                    user?.avatar_url
+                      ? `${import.meta.env.VITE_API_URL}${user.avatar_url}`
+                      : undefined
+                  }
+                  alt={user?.full_name || "User"}
+                />
                 <AvatarFallback className="bg-zinc-600 text-white text-xs">
                   {getInitials(user?.full_name || "User")}
                 </AvatarFallback>
@@ -83,6 +91,14 @@ export function User({ user }: { user: any }) {
             {/* Header: Avatar + Email */}
             <div className="flex items-center gap-3 p-3">
               <Avatar className="size-10">
+                <AvatarImage
+                  src={
+                    user?.avatar_url
+                      ? `${import.meta.env.VITE_API_URL}${user.avatar_url}`
+                      : undefined
+                  }
+                  alt={user?.full_name || "User"}
+                />
                 <AvatarFallback className="bg-zinc-600 text-white">
                   {getInitials(user?.full_name || "User")}
                 </AvatarFallback>
@@ -113,7 +129,9 @@ export function User({ user }: { user: any }) {
                   {themeOptions.map((opt) => (
                     <DropdownMenuItem
                       key={opt.value}
-                      onClick={() => setTheme(opt.value as "light" | "dark" | "system")}
+                      onClick={() =>
+                        setTheme(opt.value as "light" | "dark" | "system")
+                      }
                       className="cursor-pointer"
                     >
                       <opt.icon className="mr-2 h-4 w-4" />
@@ -156,7 +174,10 @@ export function User({ user }: { user: any }) {
             <DropdownMenuSeparator />
 
             {/* Logout */}
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-3 h-4 w-4" />
               Sign out
             </DropdownMenuItem>

@@ -5,9 +5,10 @@ Provides a straightforward interface to call DeepSeek for chat completions.
 """
 
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import httpx
+
 from app.core.config import settings
 
 
@@ -30,7 +31,7 @@ async def stream_chat_completion(
     api_key = os.getenv("DEEPSEEK_API_KEY") or settings.DEEPSEEK_API_KEY
     api_base = os.getenv("DEEPSEEK_API_BASE") or settings.DEEPSEEK_API_BASE
     model_name = model or settings.LLM_MODEL
-    
+
     if api_key == "changethis":
         # Fallback to mock response if API key not configured
         mock_response = ("I am a demo AI assistant. Please configure your "
@@ -38,7 +39,7 @@ async def stream_chat_completion(
         for word in mock_response.split():
             yield word + " "
         return
-    
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             async with client.stream(
@@ -56,28 +57,28 @@ async def stream_chat_completion(
                 },
             ) as response:
                 response.raise_for_status()
-                
+
                 async for line in response.aiter_lines():
                     if not line.strip():
                         continue
-                    
+
                     if line.startswith("data: "):
                         data = line[6:]  # Remove "data: " prefix
-                        
+
                         if data == "[DONE]":
                             break
-                        
+
                         try:
                             import json
                             chunk = json.loads(data)
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             content = delta.get("content", "")
-                            
+
                             if content:
                                 yield content
                         except json.JSONDecodeError:
                             continue
-                            
+
         except httpx.HTTPStatusError as e:
             yield f"[Error: API returned {e.response.status_code}] "
         except Exception as e:

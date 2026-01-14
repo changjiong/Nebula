@@ -1,11 +1,12 @@
 from fastapi import APIRouter
 
-from app.api.routes import agents, chat, login, private, tasks, users, utils
+from app.api.routes import agents, avatar, chat, login, private, tasks, users, utils
 from app.core.config import settings
 
 api_router = APIRouter()
 api_router.include_router(login.router)
 api_router.include_router(users.router)
+api_router.include_router(avatar.router)  # Avatar upload endpoints
 api_router.include_router(utils.router)
 # New routers
 api_router.include_router(agents.router, prefix="/agents", tags=["agents"])

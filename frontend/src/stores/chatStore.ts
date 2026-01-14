@@ -23,6 +23,18 @@ export interface Conversation {
   messages: Message[]
   createdAt: Date
   updatedAt: Date
+  isPinned?: boolean
+}
+
+// 子项类型：搜索结果、文件操作、API调用等
+export interface StepSubItem {
+  id: string
+  type: "search-result" | "file-operation" | "api-call" | "text"
+  title: string
+  icon?: string // 图标URL或icon名称
+  source?: string // 来源域名（搜索结果用）
+  content?: string // 可在画布中展示的详细内容
+  previewable: boolean // 是否可点击查看详情
 }
 
 export interface ThinkingStep {
@@ -31,6 +43,11 @@ export interface ThinkingStep {
   status: "pending" | "in-progress" | "completed" | "failed"
   content: string
   timestamp: number
+  // Timeline UI 扩展字段
+  group?: string // 所属分组名称（如"开始研究"）
+  subItems?: StepSubItem[] // 子项列表
+  isCollapsible?: boolean // 是否可折叠
+  defaultExpanded?: number // 默认展开的子项数量
 }
 
 interface ChatState {
@@ -43,6 +60,10 @@ interface ChatState {
   // Conversation management
   conversations: Conversation[]
   currentConversationId: string | null
+
+  // Canvas state (right-side detail panel)
+  canvasContent: StepSubItem | null
+  isCanvasOpen: boolean
 
   // Actions
   setMessages: (messages: Message[]) => void
@@ -64,9 +85,15 @@ interface ChatState {
 
   // Conversation actions
   createNewConversation: () => void
+  resetToHome: () => void // Go back to "What can I help you with?" without creating a conversation
   switchConversation: (id: string) => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
+  toggleConversationPin: (id: string) => void
+
+  // Canvas actions
+  openCanvas: (item: StepSubItem) => void
+  closeCanvas: () => void
 }
 
 export const useChatStore = create<ChatState>()(
@@ -79,26 +106,50 @@ export const useChatStore = create<ChatState>()(
       currentAgentId: null,
       conversations: [],
       currentConversationId: null,
+      canvasContent: null,
+      isCanvasOpen: false,
 
       setMessages: (messages) => set({ messages }),
       addMessage: (message) => {
-        const { currentConversationId, conversations } = get()
+        const { currentConversationId } = get()
 
         set((state) => {
           // Clear thinking steps when user sends a new message
           const shouldClearThinking = message.role === "user"
 
-          // Update conversations with new message
+          // Lazy creation: If no current conversation, create one now
+          let targetConversationId = currentConversationId
           let updatedConversations = state.conversations
-          if (currentConversationId) {
-            updatedConversations = conversations.map((conv) => {
-              if (conv.id === currentConversationId) {
+
+          if (!targetConversationId) {
+            // Create new conversation on the fly
+            const newConv: Conversation = {
+              id: crypto.randomUUID(),
+              title: "Temp Title", // Will be auto-updated below
+              messages: [],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }
+            targetConversationId = newConv.id
+            updatedConversations = [newConv, ...state.conversations]
+
+            // We also need to update the state immediately so the view switches
+            // NOTE: We return the partial state update at the end, which handles this.
+          }
+
+          // Update conversations with new message
+          if (targetConversationId) {
+            updatedConversations = updatedConversations.map((conv) => {
+              if (conv.id === targetConversationId) {
                 // Auto-name: if this is user's first message and title is default
                 let newTitle = conv.title
                 if (
                   message.role === "user" &&
-                  conv.messages.filter(m => m.role === "user").length === 0 &&
-                  (conv.title === "新对话" || conv.title === "New Conversation" || !conv.title)
+                  conv.messages.filter((m) => m.role === "user").length === 0 &&
+                  (conv.title === "Temp Title" ||
+                    conv.title === "新对话" ||
+                    conv.title === "New Conversation" ||
+                    !conv.title)
                 ) {
                   // Use first 50 chars of message as title
                   newTitle = message.content.slice(0, 50).trim()
@@ -119,6 +170,7 @@ export const useChatStore = create<ChatState>()(
           }
 
           return {
+            currentConversationId: targetConversationId, // Ensure we switch to it
             messages: [...state.messages, message],
             thinkingSteps: shouldClearThinking ? [] : state.thinkingSteps,
             conversations: updatedConversations,
@@ -233,6 +285,14 @@ export const useChatStore = create<ChatState>()(
         }))
       },
 
+      resetToHome: () => {
+        set({
+          currentConversationId: null,
+          messages: [],
+          thinkingSteps: [],
+        })
+      },
+
       switchConversation: (id) => {
         const conv = get().conversations.find((c) => c.id === id)
         if (conv) {
@@ -260,6 +320,18 @@ export const useChatStore = create<ChatState>()(
           ),
         }))
       },
+
+      toggleConversationPin: (id) => {
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, isPinned: !c.isPinned } : c,
+          ),
+        }))
+      },
+
+      // Canvas actions
+      openCanvas: (item) => set({ canvasContent: item, isCanvasOpen: true }),
+      closeCanvas: () => set({ canvasContent: null, isCanvasOpen: false }),
     }),
     {
       name: "chat-storage",

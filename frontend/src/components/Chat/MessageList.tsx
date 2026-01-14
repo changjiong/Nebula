@@ -3,11 +3,17 @@ import ReactMarkdown from "react-markdown"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
+import { ContentCanvas } from "../Timeline/ContentCanvas"
 import { ThinkingMessage } from "./ThinkingMessage"
 
 export function MessageList() {
   const { messages } = useChatStore()
   const thinkingSteps = useChatStore((state) => state.thinkingSteps)
+  // Canvas state
+  const canvasContent = useChatStore((state) => state.canvasContent)
+  const isCanvasOpen = useChatStore((state) => state.isCanvasOpen)
+  const closeCanvas = useChatStore((state) => state.closeCanvas)
+
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -55,9 +61,9 @@ export function MessageList() {
 
             <div
               className={cn(
-                "rounded-lg p-4 max-w-[80%]",
+                "rounded-2xl px-3 py-2 max-w-[80%]",
                 message.role === "user"
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-secondary text-secondary-foreground border border-border/50"
                   : "bg-muted",
               )}
             >
@@ -77,6 +83,13 @@ export function MessageList() {
       ))}
 
       <div ref={bottomRef} />
+
+      {/* Right-side Content Canvas */}
+      <ContentCanvas
+        item={canvasContent}
+        isOpen={isCanvasOpen}
+        onClose={closeCanvas}
+      />
     </div>
   )
 }

@@ -238,7 +238,7 @@ class KechuangEvaluatorAgent(BaseAgent):
             "稳定性": scores.stability,
             "合作度": scores.cooperation,
         }
-        
+
         strengths = [k for k, v in score_dict.items() if v >= 80]
         weaknesses = [k for k, v in score_dict.items() if v < 60]
 

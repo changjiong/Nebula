@@ -24,7 +24,11 @@
 - ✅ Tests with [Pytest](https://pytest.org).
 - 📞 [Traefik](https://traefik.io) as a reverse proxy / load balancer.
 - 🚢 Deployment instructions using Docker Compose, including how to set up a frontend Traefik proxy to handle automatic HTTPS certificates.
-- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.
+- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.- 🤖 **AI Agent Portal** with LangGraph orchestration engine
+  - 🧠 DeepSeek AI integration for intelligent chat responses
+  - 📊 Agent management (create, configure, deploy AI agents)
+  - ⚡ Real-time streaming responses via Server-Sent Events
+  - 📝 Task monitoring for background operations
 
 ### Dashboard Login
 
@@ -34,9 +38,13 @@
 
 [![API docs](img/dashboard.png)](https://github.com/fastapi/full-stack-fastapi-template)
 
-### Dashboard - Items
+### AI Agent Portal
 
-[![API docs](img/dashboard-items.png)](https://github.com/fastapi/full-stack-fastapi-template)
+[![Agent Portal](img/agent-portal.png)](https://github.com/fastapi/full-stack-fastapi-template)
+
+### Agent Management
+
+[![Agent Management](img/agent-management.png)](https://github.com/fastapi/full-stack-fastapi-template)
 
 ### Dashboard - Dark Mode
 
@@ -45,6 +53,41 @@
 ### Interactive API Documentation
 
 [![API docs](img/docs.png)](https://github.com/fastapi/full-stack-fastapi-template)
+
+## AI Configuration
+
+### DeepSeek API Setup
+
+1. Obtain API key from [DeepSeek Platform](https://platform.deepseek.com/)
+2. Add to `.env`:
+   ```bash
+   DEEPSEEK_API_KEY=sk-your-api-key-here
+   DEEPSEEK_API_BASE=https://api.deepseek.com/v1
+   LLM_MODEL=deepseek-chat
+   ```
+3. Restart backend: `docker compose restart backend`
+
+### Available Features
+
+- **Agent Portal** (`/chat`) - Interactive AI chat interface
+- **Agent Management** (`/agents`) - Configure AI agent personas
+- **Task Monitor** (`/tasks`) - View background job status
+
+### Switching LLM Providers
+
+The LLM client is compatible with OpenAI API format. To use other providers:
+
+```bash
+# For OpenAI
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_API_BASE=https://api.openai.com/v1
+LLM_MODEL=gpt-4
+
+# For SiliconFlow (Chinese alternative)
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_API_BASE=https://api.siliconflow.cn/v1
+LLM_MODEL=deepseek-ai/DeepSeek-V3
+```
 
 ## How To Use It
 
