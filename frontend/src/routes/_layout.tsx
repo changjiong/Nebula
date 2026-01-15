@@ -1,8 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
+import { useEffect } from "react"
 
 import AppSidebar from "@/components/Sidebar/AppSidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { isLoggedIn } from "@/hooks/useAuth"
+import { useConversations } from "@/hooks/useConversations"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 
 export const Route = createFileRoute("/_layout")({
@@ -19,6 +21,13 @@ export const Route = createFileRoute("/_layout")({
 function Layout() {
   // Enable global keyboard shortcuts
   useKeyboardShortcuts()
+
+  // Load conversations from server on mount
+  const { loadConversations } = useConversations()
+
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
 
   return (
     <SidebarProvider>

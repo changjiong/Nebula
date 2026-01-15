@@ -8,6 +8,11 @@ export type AgentCreate = {
     temperature?: number;
     is_active?: boolean;
     tools?: (Array<(string)> | null);
+    category?: string;
+    visibility?: string;
+    allowed_departments?: (Array<(string)> | null);
+    allowed_roles?: (Array<(string)> | null);
+    execution_mode?: string;
 };
 
 export type AgentPublic = {
@@ -18,6 +23,11 @@ export type AgentPublic = {
     temperature?: number;
     is_active?: boolean;
     tools?: (Array<(string)> | null);
+    category?: string;
+    visibility?: string;
+    allowed_departments?: (Array<(string)> | null);
+    allowed_roles?: (Array<(string)> | null);
+    execution_mode?: string;
     id: string;
     created_at: string;
     updated_at: string;
@@ -36,6 +46,11 @@ export type AgentUpdate = {
     temperature?: (number | null);
     is_active?: (boolean | null);
     tools?: (Array<(string)> | null);
+    category?: (string | null);
+    visibility?: (string | null);
+    allowed_departments?: (Array<(string)> | null);
+    allowed_roles?: (Array<(string)> | null);
+    execution_mode?: (string | null);
 };
 
 export type Body_login_login_access_token = {
@@ -47,17 +62,43 @@ export type Body_login_login_access_token = {
     client_secret?: (string | null);
 };
 
+export type Body_users_upload_avatar = {
+    file: (Blob | File);
+};
+
+export type Body_users_upload_avatar_me = {
+    file: (Blob | File);
+};
+
 export type ConversationCreate = {
     title?: (string | null);
-    user_id?: (string | null);
 };
 
 export type ConversationPublic = {
     title?: (string | null);
-    user_id?: (string | null);
     id: string;
+    is_pinned: boolean;
     created_at: string;
     updated_at: string;
+};
+
+export type ConversationsPublic = {
+    data: Array<ConversationPublic>;
+    count: number;
+};
+
+export type ConversationUpdate = {
+    title?: (string | null);
+    is_pinned?: (boolean | null);
+};
+
+export type ConversationWithMessages = {
+    title?: (string | null);
+    id: string;
+    is_pinned: boolean;
+    created_at: string;
+    updated_at: string;
+    messages?: Array<MessagePublic>;
 };
 
 export type HTTPValidationError = {
@@ -105,11 +146,11 @@ export type TaskPublic = {
     status: string;
     processed_items: number;
     error_log: ({
-        [key: string]: unknown;
-    } | null);
+    [key: string]: unknown;
+} | null);
     result: ({
-        [key: string]: unknown;
-    } | null);
+    [key: string]: unknown;
+} | null);
     created_at: string;
     finished_at: (string | null);
 };
@@ -134,6 +175,7 @@ export type UserCreate = {
     is_active?: boolean;
     is_superuser?: boolean;
     full_name?: (string | null);
+    avatar_url?: (string | null);
     password: string;
 };
 
@@ -162,6 +204,7 @@ export type UserUpdate = {
     is_active?: boolean;
     is_superuser?: boolean;
     full_name?: (string | null);
+    avatar_url?: (string | null);
     password?: (string | null);
 };
 
@@ -209,11 +252,37 @@ export type AgentsDeleteAgentData = {
 
 export type AgentsDeleteAgentResponse = (AgentPublic);
 
+export type ChatReadConversationsData = {
+    limit?: number;
+    skip?: number;
+};
+
+export type ChatReadConversationsResponse = (ConversationsPublic);
+
 export type ChatCreateConversationData = {
     requestBody: ConversationCreate;
 };
 
 export type ChatCreateConversationResponse = (ConversationPublic);
+
+export type ChatReadConversationData = {
+    conversationId: string;
+};
+
+export type ChatReadConversationResponse = (ConversationWithMessages);
+
+export type ChatUpdateConversationData = {
+    conversationId: string;
+    requestBody: ConversationUpdate;
+};
+
+export type ChatUpdateConversationResponse = (ConversationPublic);
+
+export type ChatDeleteConversationData = {
+    conversationId: string;
+};
+
+export type ChatDeleteConversationResponse = (unknown);
 
 export type ChatReadMessagesData = {
     conversationId: string;
@@ -320,6 +389,14 @@ export type UsersUpdatePasswordMeData = {
 };
 
 export type UsersUpdatePasswordMeResponse = (Message);
+
+export type UsersUploadAvatarData = {
+    formData: Body_users_upload_avatar;
+};
+
+export type UsersUploadAvatarResponse = (UserPublic);
+
+export type UsersDeleteAvatarResponse = (Message);
 
 export type UsersRegisterUserData = {
     requestBody: UserRegister;

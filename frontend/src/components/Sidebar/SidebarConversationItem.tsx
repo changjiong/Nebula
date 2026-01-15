@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { SidebarMenuSubButton } from "@/components/ui/sidebar"
+import { useConversations } from "@/hooks/useConversations"
 import { cn } from "@/lib/utils"
-import { useChatStore, Conversation } from "@/stores/chatStore"
+import { Conversation } from "@/stores/chatStore"
 
 interface SidebarConversationItemProps {
     conversation: Conversation
@@ -33,13 +34,10 @@ export function SidebarConversationItem({
     isActive,
     onSelect,
 }: SidebarConversationItemProps) {
-    const deleteConversation = useChatStore((state) => state.deleteConversation)
-    const toggleConversationPin = useChatStore(
-        (state) => state.toggleConversationPin,
-    )
-    const updateConversationTitle = useChatStore(
-        (state) => state.updateConversationTitle,
-    )
+    const {
+        deleteConversation,
+        updateConversation,
+    } = useConversations()
 
     const [isEditing, setIsEditing] = useState(false)
     const [editTitle, setEditTitle] = useState("")
@@ -50,9 +48,9 @@ export function SidebarConversationItem({
         setEditTitle(conversation.title || "New Conversation")
     }
 
-    const handleSaveRename = (e: React.MouseEvent) => {
+    const handleSaveRename = async (e: React.MouseEvent) => {
         e.stopPropagation()
-        updateConversationTitle(conversation.id, editTitle)
+        await updateConversation(conversation.id, { title: editTitle })
         setIsEditing(false)
     }
 
@@ -136,9 +134,11 @@ export function SidebarConversationItem({
                             Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation()
-                                toggleConversationPin(conversation.id)
+                                await updateConversation(conversation.id, {
+                                    is_pinned: !conversation.isPinned
+                                })
                             }}
                         >
                             {conversation.isPinned ? (
@@ -155,9 +155,9 @@ export function SidebarConversationItem({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation()
-                                deleteConversation(conversation.id)
+                                await deleteConversation(conversation.id)
                             }}
                         >
                             <Trash2 className="h-4 w-4 mr-2" />

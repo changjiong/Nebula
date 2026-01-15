@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { useConversations } from "@/hooks/useConversations"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 
@@ -28,20 +29,14 @@ const MODELS = [
 export function InputBox() {
   const [input, setInput] = useState("")
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
-  const { addMessage, isConnecting, setIsConnecting } = useChatStore()
+  const { addMessage, isConnecting, setIsConnecting, currentConversationId } = useChatStore()
+  const { createConversation, sendMessage } = useConversations()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSubmit = async (): Promise<void> => {
     if (!input.trim() || isConnecting) return
 
-    const userMessage = {
-      id: Date.now().toString(),
-      role: "user" as const,
-      content: input,
-      timestamp: Date.now(),
-    }
-
-    addMessage(userMessage)
+    const userInput = input
     setInput("")
 
     // Reset textarea height
@@ -51,8 +46,31 @@ export function InputBox() {
 
     setIsConnecting(true)
 
-    // Call the backend streaming endpoint
     try {
+      // Ensure we have a conversation (create one if needed)
+      let conversationId = currentConversationId
+      if (!conversationId) {
+        // Create conversation on server first
+        const newConv = await createConversation(userInput.slice(0, 50))
+        if (!newConv) {
+          throw new Error("Failed to create conversation")
+        }
+        conversationId = newConv.id
+      }
+
+      // Save user message to server
+      const savedUserMessage = await sendMessage(conversationId, "user", userInput)
+
+      // Add to local state for immediate UI feedback
+      const userMessage = {
+        id: savedUserMessage?.id || Date.now().toString(),
+        role: "user" as const,
+        content: userInput,
+        timestamp: Date.now(),
+      }
+      addMessage(userMessage)
+
+      // Call the backend streaming endpoint
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
       const response = await fetch(`${apiUrl}/api/v1/chat/stream`, {
         method: "POST",
@@ -62,8 +80,8 @@ export function InputBox() {
         },
         body: JSON.stringify({
           role: "user",
-          content: input,
-          model: selectedModel.id, // Pass model param if supported
+          content: userInput,
+          model: selectedModel.id,
         }),
       })
 
@@ -97,8 +115,12 @@ export function InputBox() {
         while (true) {
           const { done, value } = await reader.read()
           if (done) {
-            // Stream finished, sync the final message to persistent storage
+            // Stream finished, sync and save to server
             syncMessageToConversation(assistantMessageId)
+            // Save assistant message to server
+            if (conversationId && assistantMessage) {
+              await sendMessage(conversationId, "assistant", assistantMessage)
+            }
             break
           }
 
@@ -115,6 +137,10 @@ export function InputBox() {
               const data = line.slice(6).trim()
               if (data === "[DONE]") {
                 syncMessageToConversation(assistantMessageId)
+                // Save assistant message to server
+                if (conversationId && assistantMessage) {
+                  await sendMessage(conversationId, "assistant", assistantMessage)
+                }
                 break
               }
 

@@ -52,6 +52,52 @@ export const AgentCreateSchema = {
                 }
             ],
             title: 'Tools'
+        },
+        category: {
+            type: 'string',
+            maxLength: 100,
+            title: 'Category',
+            default: 'default'
+        },
+        visibility: {
+            type: 'string',
+            maxLength: 20,
+            title: 'Visibility',
+            default: 'public'
+        },
+        allowed_departments: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Departments'
+        },
+        allowed_roles: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Roles'
+        },
+        execution_mode: {
+            type: 'string',
+            maxLength: 20,
+            title: 'Execution Mode',
+            default: 'realtime'
         }
     },
     type: 'object',
@@ -111,6 +157,52 @@ export const AgentPublicSchema = {
                 }
             ],
             title: 'Tools'
+        },
+        category: {
+            type: 'string',
+            maxLength: 100,
+            title: 'Category',
+            default: 'default'
+        },
+        visibility: {
+            type: 'string',
+            maxLength: 20,
+            title: 'Visibility',
+            default: 'public'
+        },
+        allowed_departments: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Departments'
+        },
+        allowed_roles: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Roles'
+        },
+        execution_mode: {
+            type: 'string',
+            maxLength: 20,
+            title: 'Execution Mode',
+            default: 'realtime'
         },
         id: {
             type: 'string',
@@ -216,6 +308,70 @@ export const AgentUpdateSchema = {
                 }
             ],
             title: 'Tools'
+        },
+        category: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 100
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Category'
+        },
+        visibility: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 20
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Visibility'
+        },
+        allowed_departments: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Departments'
+        },
+        allowed_roles: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Allowed Roles'
+        },
+        execution_mode: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 20
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Execution Mode'
         }
     },
     type: 'object',
@@ -296,6 +452,32 @@ export const Body_login_login_access_tokenSchema = {
     title: 'Body_login-login_access_token'
 } as const;
 
+export const Body_users_upload_avatarSchema = {
+    properties: {
+        file: {
+            type: 'string',
+            format: 'binary',
+            title: 'File'
+        }
+    },
+    type: 'object',
+    required: ['file'],
+    title: 'Body_users-upload_avatar'
+} as const;
+
+export const Body_users_upload_avatar_meSchema = {
+    properties: {
+        file: {
+            type: 'string',
+            format: 'binary',
+            title: 'File'
+        }
+    },
+    type: 'object',
+    required: ['file'],
+    title: 'Body_users-upload_avatar_me'
+} as const;
+
 export const ConversationCreateSchema = {
     properties: {
         title: {
@@ -309,18 +491,6 @@ export const ConversationCreateSchema = {
                 }
             ],
             title: 'Title'
-        },
-        user_id: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'User Id'
         }
     },
     type: 'object',
@@ -341,22 +511,14 @@ export const ConversationPublicSchema = {
             ],
             title: 'Title'
         },
-        user_id: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'User Id'
-        },
         id: {
             type: 'string',
             format: 'uuid',
             title: 'Id'
+        },
+        is_pinned: {
+            type: 'boolean',
+            title: 'Is Pinned'
         },
         created_at: {
             type: 'string',
@@ -370,8 +532,103 @@ export const ConversationPublicSchema = {
         }
     },
     type: 'object',
-    required: ['id', 'created_at', 'updated_at'],
+    required: ['id', 'is_pinned', 'created_at', 'updated_at'],
     title: 'ConversationPublic'
+} as const;
+
+export const ConversationUpdateSchema = {
+    properties: {
+        title: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Title'
+        },
+        is_pinned: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Pinned'
+        }
+    },
+    type: 'object',
+    title: 'ConversationUpdate'
+} as const;
+
+export const ConversationWithMessagesSchema = {
+    properties: {
+        title: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 255
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Title'
+        },
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        is_pinned: {
+            type: 'boolean',
+            title: 'Is Pinned'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        messages: {
+            items: {
+                '$ref': '#/components/schemas/MessagePublic'
+            },
+            type: 'array',
+            title: 'Messages',
+            default: []
+        }
+    },
+    type: 'object',
+    required: ['id', 'is_pinned', 'created_at', 'updated_at'],
+    title: 'ConversationWithMessages'
+} as const;
+
+export const ConversationsPublicSchema = {
+    properties: {
+        data: {
+            items: {
+                '$ref': '#/components/schemas/ConversationPublic'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: ['data', 'count'],
+    title: 'ConversationsPublic'
 } as const;
 
 export const HTTPValidationErrorSchema = {
@@ -668,6 +925,18 @@ export const UserCreateSchema = {
             ],
             title: 'Full Name'
         },
+        avatar_url: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 500
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar Url'
+        },
         password: {
             type: 'string',
             maxLength: 128,
@@ -709,6 +978,18 @@ export const UserPublicSchema = {
                 }
             ],
             title: 'Full Name'
+        },
+        avatar_url: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 500
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar Url'
         },
         id: {
             type: 'string',
@@ -790,6 +1071,18 @@ export const UserUpdateSchema = {
             ],
             title: 'Full Name'
         },
+        avatar_url: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 500
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar Url'
+        },
         password: {
             anyOf: [
                 {
@@ -834,6 +1127,18 @@ export const UserUpdateMeSchema = {
                 }
             ],
             title: 'Email'
+        },
+        avatar_url: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 500
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Avatar Url'
         }
     },
     type: 'object',

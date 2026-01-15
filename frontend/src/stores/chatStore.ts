@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import type { MessagePublic } from "@/client/types.gen"
+
 export interface Agent {
   id: string
   name: string
@@ -83,17 +85,39 @@ interface ChatState {
   // Thinking steps actions
   clearThinkingSteps: () => void
 
-  // Conversation actions
+  // Conversation actions (local state)
   createNewConversation: () => void
-  resetToHome: () => void // Go back to "What can I help you with?" without creating a conversation
+  resetToHome: () => void
   switchConversation: (id: string) => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
   toggleConversationPin: (id: string) => void
 
+  // Server sync actions (called by useConversations hook)
+  setConversations: (conversations: Conversation[]) => void
+  setCurrentConversation: (id: string, messages: MessagePublic[]) => void
+  addConversationFromServer: (conversation: Conversation) => void
+  updateConversationFromServer: (
+    id: string,
+    updates: { title?: string; isPinned?: boolean },
+  ) => void
+  removeConversation: (id: string) => void
+
   // Canvas actions
   openCanvas: (item: StepSubItem) => void
   closeCanvas: () => void
+}
+
+/**
+ * Helper to convert server MessagePublic to local Message
+ */
+function serverMessageToLocal(msg: MessagePublic): Message {
+  return {
+    id: msg.id,
+    role: msg.role as "user" | "assistant" | "system",
+    content: msg.content,
+    timestamp: new Date(msg.created_at).getTime(),
+  }
 }
 
 export const useChatStore = create<ChatState>()(
@@ -110,6 +134,7 @@ export const useChatStore = create<ChatState>()(
       isCanvasOpen: false,
 
       setMessages: (messages) => set({ messages }),
+
       addMessage: (message) => {
         const { currentConversationId } = get()
 
@@ -117,7 +142,7 @@ export const useChatStore = create<ChatState>()(
           // Clear thinking steps when user sends a new message
           const shouldClearThinking = message.role === "user"
 
-          // Lazy creation: If no current conversation, create one now
+          // Lazy creation: If no current conversation, create one now (local only)
           let targetConversationId = currentConversationId
           let updatedConversations = state.conversations
 
@@ -132,9 +157,6 @@ export const useChatStore = create<ChatState>()(
             }
             targetConversationId = newConv.id
             updatedConversations = [newConv, ...state.conversations]
-
-            // We also need to update the state immediately so the view switches
-            // NOTE: We return the partial state update at the end, which handles this.
           }
 
           // Update conversations with new message
@@ -170,13 +192,14 @@ export const useChatStore = create<ChatState>()(
           }
 
           return {
-            currentConversationId: targetConversationId, // Ensure we switch to it
+            currentConversationId: targetConversationId,
             messages: [...state.messages, message],
             thinkingSteps: shouldClearThinking ? [] : state.thinkingSteps,
             conversations: updatedConversations,
           }
         })
       },
+
       updateMessage: (id, content) => {
         const { currentConversationId, conversations } = get()
 
@@ -211,7 +234,6 @@ export const useChatStore = create<ChatState>()(
 
       updateMessageTransient: (id, content) => {
         // Only update the 'messages' array (view state), NOT 'conversations' (persisted state)
-        // This avoids triggering localStorage write on every keystroke/token
         set((state) => ({
           messages: state.messages.map((msg) =>
             msg.id === id ? { ...msg, content } : msg,
@@ -257,6 +279,7 @@ export const useChatStore = create<ChatState>()(
           }
           return { thinkingSteps: [...state.thinkingSteps, step] }
         }),
+
       updateThinkingStep: (id, updates) =>
         set((state) => ({
           thinkingSteps: state.thinkingSteps.map((step) =>
@@ -269,6 +292,7 @@ export const useChatStore = create<ChatState>()(
 
       clearThinkingSteps: () => set({ thinkingSteps: [] }),
 
+      // Conversation actions (local state management)
       createNewConversation: () => {
         const newConv: Conversation = {
           id: crypto.randomUUID(),
@@ -329,6 +353,59 @@ export const useChatStore = create<ChatState>()(
         }))
       },
 
+      // Server sync actions
+      setConversations: (conversations) => {
+        set({ conversations })
+      },
+
+      setCurrentConversation: (id, serverMessages) => {
+        const messages = serverMessages.map(serverMessageToLocal)
+        set((state) => ({
+          currentConversationId: id,
+          messages,
+          // Also update the conversation in the list
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, messages } : c,
+          ),
+          thinkingSteps: [],
+        }))
+      },
+
+      addConversationFromServer: (conversation) => {
+        set((state) => ({
+          conversations: [conversation, ...state.conversations],
+          currentConversationId: conversation.id,
+          messages: conversation.messages,
+          thinkingSteps: [],
+        }))
+      },
+
+      updateConversationFromServer: (id, updates) => {
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id
+              ? {
+                ...c,
+                ...(updates.title !== undefined && { title: updates.title }),
+                ...(updates.isPinned !== undefined && {
+                  isPinned: updates.isPinned,
+                }),
+                updatedAt: new Date(),
+              }
+              : c,
+          ),
+        }))
+      },
+
+      removeConversation: (id) => {
+        set((state) => ({
+          conversations: state.conversations.filter((c) => c.id !== id),
+          ...(state.currentConversationId === id
+            ? { currentConversationId: null, messages: [], thinkingSteps: [] }
+            : {}),
+        }))
+      },
+
       // Canvas actions
       openCanvas: (item) => set({ canvasContent: item, isCanvasOpen: true }),
       closeCanvas: () => set({ canvasContent: null, isCanvasOpen: false }),
@@ -336,6 +413,7 @@ export const useChatStore = create<ChatState>()(
     {
       name: "chat-storage",
       partialize: (state) => ({
+        // Keep localStorage as cache/fallback
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
       }),

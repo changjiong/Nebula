@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useConversations } from "@/hooks/useConversations"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 
@@ -37,14 +38,11 @@ interface HistoryModalProps {
 
 export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
   const conversations = useChatStore((state) => state.conversations)
-  const switchConversation = useChatStore((state) => state.switchConversation)
-  const deleteConversation = useChatStore((state) => state.deleteConversation)
-  const toggleConversationPin = useChatStore(
-    (state) => state.toggleConversationPin,
-  )
-  const updateConversationTitle = useChatStore(
-    (state) => state.updateConversationTitle,
-  )
+  const {
+    deleteConversation,
+    updateConversation,
+    loadConversation,
+  } = useConversations()
   const [searchQuery, setSearchQuery] = useState("")
   const [hoveredConversation, setHoveredConversation] = useState<string | null>(
     null,
@@ -63,8 +61,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
     (c) => c.id === hoveredConversation,
   )
 
-  const handleSelect = (id: string) => {
-    switchConversation(id)
+  const handleSelect = async (id: string) => {
+    // Load full conversation from server
+    await loadConversation(id)
     onOpenChange(false)
   }
 
@@ -106,10 +105,10 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
     setEditTitle(currentTitle || "New Conversation")
   }
 
-  const handleSaveRename = (e: React.MouseEvent) => {
+  const handleSaveRename = async (e: React.MouseEvent) => {
     e.stopPropagation()
     if (editingId) {
-      updateConversationTitle(editingId, editTitle)
+      await updateConversation(editingId, { title: editTitle })
       setEditingId(null)
     }
   }
@@ -251,9 +250,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                     Rename
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                       e.stopPropagation()
-                                      toggleConversationPin(conv.id)
+                                      await updateConversation(conv.id, { is_pinned: false })
                                     }}
                                   >
                                     <PinOff className="h-4 w-4 mr-2" />
@@ -261,9 +260,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                       e.stopPropagation()
-                                      deleteConversation(conv.id)
+                                      await deleteConversation(conv.id)
                                     }}
                                   >
                                     <Trash2 className="h-4 w-4 mr-2" />
@@ -389,9 +388,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                       Rename
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                      onClick={(e) => {
+                                      onClick={async (e) => {
                                         e.stopPropagation()
-                                        toggleConversationPin(conv.id)
+                                        await updateConversation(conv.id, { is_pinned: true })
                                       }}
                                     >
                                       <Pin className="h-4 w-4 mr-2" />
@@ -399,9 +398,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
-                                      onClick={(e) => {
+                                      onClick={async (e) => {
                                         e.stopPropagation()
-                                        deleteConversation(conv.id)
+                                        await deleteConversation(conv.id)
                                       }}
                                     >
                                       <Trash2 className="h-4 w-4 mr-2" />

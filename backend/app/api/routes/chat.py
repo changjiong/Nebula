@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models import (
@@ -12,11 +12,43 @@ from app.models import (
     Conversation,
     ConversationCreate,
     ConversationPublic,
+    ConversationsPublic,
+    ConversationUpdate,
+    ConversationWithMessages,
     MessageCreate,
     MessagePublic,
 )
 
 router = APIRouter()
+
+
+@router.get("/", response_model=ConversationsPublic)
+def read_conversations(
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    """
+    Retrieve conversations for the current user.
+    """
+    count_statement = (
+        select(func.count())
+        .select_from(Conversation)
+        .where(Conversation.user_id == current_user.id)
+    )
+    count = session.exec(count_statement).one()
+
+    statement = (
+        select(Conversation)
+        .where(Conversation.user_id == current_user.id)
+        .order_by(Conversation.is_pinned.desc(), Conversation.updated_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    conversations = session.exec(statement).all()
+
+    return ConversationsPublic(data=conversations, count=count)
 
 
 @router.post("/", response_model=ConversationPublic)
@@ -34,11 +66,95 @@ def create_conversation(
     return conversation
 
 
+@router.get("/{conversation_id}", response_model=ConversationWithMessages)
+def read_conversation(
+    session: SessionDep,
+    current_user: CurrentUser,
+    conversation_id: uuid.UUID,
+) -> Any:
+    """
+    Get a specific conversation with all its messages.
+    """
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    # Load messages
+    statement = (
+        select(ChatMessage)
+        .where(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.created_at)
+    )
+    messages = session.exec(statement).all()
+
+    return ConversationWithMessages(
+        id=conversation.id,
+        title=conversation.title,
+        is_pinned=conversation.is_pinned,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at,
+        messages=[MessagePublic.model_validate(m) for m in messages],
+    )
+
+
+@router.patch("/{conversation_id}", response_model=ConversationPublic)
+def update_conversation(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    conversation_id: uuid.UUID,
+    conversation_in: ConversationUpdate,
+) -> Any:
+    """
+    Update a conversation (title, pinned status).
+    """
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    update_data = conversation_in.model_dump(exclude_unset=True)
+    conversation.sqlmodel_update(update_data)
+    session.add(conversation)
+    session.commit()
+    session.refresh(conversation)
+    return conversation
+
+
+@router.delete("/{conversation_id}")
+def delete_conversation(
+    session: SessionDep,
+    current_user: CurrentUser,
+    conversation_id: uuid.UUID,
+) -> Any:
+    """
+    Delete a conversation.
+    """
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    session.delete(conversation)
+    session.commit()
+    return {"message": "Conversation deleted successfully"}
+
+
 @router.get("/{conversation_id}/messages", response_model=list[MessagePublic])
-def read_messages(session: SessionDep, conversation_id: uuid.UUID) -> Any:
+def read_messages(session: SessionDep, current_user: CurrentUser, conversation_id: uuid.UUID) -> Any:
     """
     Get messages for a conversation.
     """
+    conversation = session.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     statement = (
         select(ChatMessage)
         .where(ChatMessage.conversation_id == conversation_id)
@@ -50,7 +166,7 @@ def read_messages(session: SessionDep, conversation_id: uuid.UUID) -> Any:
 
 @router.post("/{conversation_id}/send", response_model=MessagePublic)
 def send_message(
-    *, session: SessionDep, conversation_id: uuid.UUID, message_in: MessageCreate
+    *, session: SessionDep, current_user: CurrentUser, conversation_id: uuid.UUID, message_in: MessageCreate
 ) -> Any:
     """
     Send a message to a conversation.
@@ -58,6 +174,8 @@ def send_message(
     conversation = session.get(Conversation, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    if conversation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
 
     message = ChatMessage.model_validate(message_in)
     message.conversation_id = conversation_id
@@ -70,7 +188,7 @@ def send_message(
 async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
     """
     Stream AI responses with thinking chain visualization.
-    
+
     Yields SSE-formatted events:
     - thinking: Reasoning steps
     - message: Response content

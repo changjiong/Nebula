@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { AgentsReadAgentsData, AgentsReadAgentsResponse, AgentsCreateAgentData, AgentsCreateAgentResponse, AgentsReadAgentData, AgentsReadAgentResponse, AgentsUpdateAgentData, AgentsUpdateAgentResponse, AgentsDeleteAgentData, AgentsDeleteAgentResponse, ChatCreateConversationData, ChatCreateConversationResponse, ChatReadMessagesData, ChatReadMessagesResponse, ChatSendMessageData, ChatSendMessageResponse, ChatStreamChatData, ChatStreamChatResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, PrivateCreateUserData, PrivateCreateUserResponse, TasksReadTasksData, TasksReadTasksResponse, TasksCreateTaskData, TasksCreateTaskResponse, TasksReadTaskData, TasksReadTaskResponse, TasksCancelTaskData, TasksCancelTaskResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse } from './types.gen';
+import type { AgentsReadAgentsData, AgentsReadAgentsResponse, AgentsCreateAgentData, AgentsCreateAgentResponse, AgentsReadAgentData, AgentsReadAgentResponse, AgentsUpdateAgentData, AgentsUpdateAgentResponse, AgentsDeleteAgentData, AgentsDeleteAgentResponse, ChatReadConversationsData, ChatReadConversationsResponse, ChatCreateConversationData, ChatCreateConversationResponse, ChatReadConversationData, ChatReadConversationResponse, ChatUpdateConversationData, ChatUpdateConversationResponse, ChatDeleteConversationData, ChatDeleteConversationResponse, ChatReadMessagesData, ChatReadMessagesResponse, ChatSendMessageData, ChatSendMessageResponse, ChatStreamChatData, ChatStreamChatResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, PrivateCreateUserData, PrivateCreateUserResponse, TasksReadTasksData, TasksReadTasksResponse, TasksCreateTaskData, TasksCreateTaskResponse, TasksReadTaskData, TasksReadTaskResponse, TasksCancelTaskData, TasksCancelTaskResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersUploadAvatarData, UsersUploadAvatarResponse, UsersDeleteAvatarResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse } from './types.gen';
 
 export class AgentsService {
     /**
@@ -118,6 +118,29 @@ export class AgentsService {
 
 export class ChatService {
     /**
+     * Read Conversations
+     * Retrieve conversations for the current user.
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns ConversationsPublic Successful Response
+     * @throws ApiError
+     */
+    public static readConversations(data: ChatReadConversationsData = {}): CancelablePromise<ChatReadConversationsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/chat/',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
      * Create Conversation
      * Create new conversation.
      * @param data The data for the request.
@@ -131,6 +154,72 @@ export class ChatService {
             url: '/api/v1/chat/',
             body: data.requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Read Conversation
+     * Get a specific conversation with all its messages.
+     * @param data The data for the request.
+     * @param data.conversationId
+     * @returns ConversationWithMessages Successful Response
+     * @throws ApiError
+     */
+    public static readConversation(data: ChatReadConversationData): CancelablePromise<ChatReadConversationResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/chat/{conversation_id}',
+            path: {
+                conversation_id: data.conversationId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Update Conversation
+     * Update a conversation (title, pinned status).
+     * @param data The data for the request.
+     * @param data.conversationId
+     * @param data.requestBody
+     * @returns ConversationPublic Successful Response
+     * @throws ApiError
+     */
+    public static updateConversation(data: ChatUpdateConversationData): CancelablePromise<ChatUpdateConversationResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v1/chat/{conversation_id}',
+            path: {
+                conversation_id: data.conversationId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Conversation
+     * Delete a conversation.
+     * @param data The data for the request.
+     * @param data.conversationId
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static deleteConversation(data: ChatDeleteConversationData): CancelablePromise<ChatDeleteConversationResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/chat/{conversation_id}',
+            path: {
+                conversation_id: data.conversationId
+            },
             errors: {
                 422: 'Validation Error'
             }
@@ -184,7 +273,7 @@ export class ChatService {
     
     /**
      * Stream Chat
-     * Stream chat response (SSE).
+     * Stream AI chat response using DeepSeek.
      * @param data The data for the request.
      * @param data.requestBody
      * @param data.agentId
@@ -520,6 +609,39 @@ export class UsersService {
             errors: {
                 422: 'Validation Error'
             }
+        });
+    }
+    
+    /**
+     * Upload Avatar
+     * Upload avatar for current user.
+     * @param data The data for the request.
+     * @param data.formData
+     * @returns UserPublic Successful Response
+     * @throws ApiError
+     */
+    public static uploadAvatar(data: UsersUploadAvatarData): CancelablePromise<UsersUploadAvatarResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/users/me/avatar',
+            formData: data.formData,
+            mediaType: 'multipart/form-data',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Avatar
+     * Delete avatar for current user.
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static deleteAvatar(): CancelablePromise<UsersDeleteAvatarResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/users/me/avatar'
         });
     }
     
