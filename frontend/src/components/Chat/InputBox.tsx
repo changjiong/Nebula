@@ -1,13 +1,12 @@
 import {
   ChevronDown,
-  Globe,
   Image as ImageIcon,
   Paperclip,
   Plus,
   SendIcon,
   Square,
 } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -19,19 +18,41 @@ import { Textarea } from "@/components/ui/textarea"
 import { useConversations } from "@/hooks/useConversations"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
+import { useModelProviderStore } from "@/stores/modelProviderStore"
 
-// Mock models
-const MODELS = [
-  { id: "grok-2", name: "Grok 2", icon: Globe },
-  { id: "grok-2-mini", name: "Grok 2 mini", icon: Globe },
+// Fallback models when no providers configured
+const FALLBACK_MODELS = [
+  { id: "deepseek-chat", name: "DeepSeek Chat", provider_name: "DeepSeek" },
 ]
 
 export function InputBox() {
   const [input, setInput] = useState("")
-  const [selectedModel, setSelectedModel] = useState(MODELS[0])
   const { addMessage, isConnecting, setIsConnecting, currentConversationId } = useChatStore()
   const { createConversation, sendMessage } = useConversations()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Get models from provider store
+  const { providers, fetchProviders } = useModelProviderStore()
+  const enabledModels = providers
+    .filter((p) => p.is_enabled && p.models.length > 0)
+    .flatMap((p) =>
+      p.models.map((m) => ({ id: m, name: m, provider_name: p.name })),
+    )
+  const models = enabledModels.length > 0 ? enabledModels : FALLBACK_MODELS
+  const [selectedModel, setSelectedModel] = useState(models[0])
+
+  // Fetch providers on mount
+  useEffect(() => {
+    fetchProviders()
+  }, [fetchProviders])
+
+  // Update selected model when models change
+  useEffect(() => {
+    if (models.length > 0 && !models.find((m) => m.id === selectedModel?.id)) {
+      setSelectedModel(models[0])
+    }
+  }, [models, selectedModel])
+
 
   const handleSubmit = async (): Promise<void> => {
     if (!input.trim() || isConnecting) return
@@ -269,7 +290,7 @@ export function InputBox() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                {MODELS.map((model) => (
+                {models.map((model) => (
                   <DropdownMenuItem
                     key={model.id}
                     onClick={() => setSelectedModel(model)}

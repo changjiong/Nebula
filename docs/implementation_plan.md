@@ -1,4 +1,8 @@
-# Unified Agent Portal 设计规范（精简版）
+# Unified Agent Portal 设计规范 v2.0
+
+> **版本说明**: 本文档融合了原始设计规范与 Native Function Calling 架构升级方案
+
+---
 
 ## 1. 平台定位
 
@@ -6,10 +10,11 @@
 
 | 做什么 | 不做什么 |
 |--------|---------|
-| ✅ 定义业务 Agent 的输入输出规范 | ❌ 数据存储和计算 |
-| ✅ 提供自然语言交互入口 | ❌ 模型训练和推理 |
-| ✅ 编排调度外部服务 | ❌ ETL 加工 |
+| ✅ 提供自然语言交互入口 | ❌ 数据存储和计算 |
+| ✅ 编排调度外部服务 (Native Function Calling) | ❌ 模型训练和推理 |
+| ✅ 知识工程管理 (Tool/Skill/Agent) | ❌ ETL 加工 |
 | ✅ 思维链可视化 + 结果渲染 | ❌ 重计算引擎 |
+| ✅ 多模型切换与统一调用 | ❌ 模型部署运维 |
 
 ---
 
@@ -23,326 +28,1166 @@
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ╔═══════════════════════════════════════════════════════════════════════╗  │
-│  ║                     通用 Agent 能力层 (横向能力)                       ║  │
+│  ║                    🧠 LLM 编排层 (Native Function Calling)            ║  │
 │  ╠═══════════════════════════════════════════════════════════════════════╣  │
-│  ║                                                                        ║  │
 │  ║  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ║  │
 │  ║  │  Planner    │  │  Executor   │  │  Validator  │  │   Memory    │  ║  │
 │  ║  │  规划层     │  │  执行层     │  │  验证层     │  │   记忆层    │  ║  │
 │  ║  │             │  │             │  │             │  │             │  ║  │
-│  ║  │ • 意图理解  │  │ • DAG 调度  │  │ • 逻辑校验  │  │ • 会话上下文│  ║  │
-│  ║  │ • 任务分解  │  │ • 并行执行  │  │ • 事实核查  │  │ • 用户画像  │  ║  │
+│  ║  │ • 意图理解  │  │ • Tool调用  │  │ • 逻辑校验  │  │ • 会话上下文│  ║  │
+│  ║  │ • 多模型路由│  │ • DAG编排   │  │ • 事实核查  │  │ • 用户画像  │  ║  │
 │  ║  │ • 模式切换  │  │ • 流式输出  │  │ • 合规审查  │  │ • 任务模式  │  ║  │
 │  ║  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  ║  │
 │  ╚═══════════════════════════════════════════════════════════════════════╝  │
-│                                      ↓ 调用/编排/验证                        │
+│                                      ↓                                       │
 │  ╔═══════════════════════════════════════════════════════════════════════╗  │
-│  ║                     业务 Agent 契约层（你的核心资产）                  ║  │
+│  ║                    📚 知识工程层 (Tool/Skill/Agent)                   ║  │
 │  ╠═══════════════════════════════════════════════════════════════════════╣  │
-│  ║  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌─────────┐ ║  │
-│  ║  │ 企业主体  │ │ 科创评价  │ │ 交易对手  │ │ 客户价值  │ │ 征信    │ ║  │
-│  ║  │ 识别 Agent│ │   Agent   │ │ 挖掘 Agent│ │ 评估 Agent│ │评分Agent│ ║  │
-│  ║  └───────────┘ └───────────┘ └───────────┘ └───────────┘ └─────────┘ ║  │
-│  ║        每个 Agent 封装: 输入输出规范 + 服务调用配置 + 前端组件        ║  │
+│  ║                                                                        ║  │
+│  ║  ┌─ Tool (原子工具) ─────────────────────────────────────────────────┐║  │
+│  ║  │ 科创评分模型 │ 企业查询API │ 工商数据API │ 关系图谱查询 │ ...    │║  │
+│  ║  └──────────────────────────────────────────────────────────────────┘ ║  │
+│  ║                          ↓ 组合编排                                    ║  │
+│  ║  ┌─ Skill (组合技能) ────────────────────────────────────────────────┐║  │
+│  ║  │ 企业全景分析 │ 科创白名单生成 │ 交易对手挖掘 │ ...               │║  │
+│  ║  └──────────────────────────────────────────────────────────────────┘ ║  │
+│  ║                          ↓ 业务封装                                    ║  │
+│  ║  ┌─ Agent (业务代理) ────────────────────────────────────────────────┐║  │
+│  ║  │ 企业主体识别 │ 科创评价 │ 客户价值评估 │ 交易对手挖掘 │ 征信评分 │║  │
+│  ║  └──────────────────────────────────────────────────────────────────┘ ║  │
 │  ╚═══════════════════════════════════════════════════════════════════════╝  │
-│                                      ↓ 调用外部服务                          │
+│                                      ↓                                       │
 │  ╔═══════════════════════════════════════════════════════════════════════╗  │
-│  ║                     外部服务层（计算在外部平台）                       ║  │
+│  ║                    🔌 服务适配层 (统一接口)                           ║  │
 │  ╠═══════════════════════════════════════════════════════════════════════╣  │
 │  ║  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ║  │
-│  ║  │  数仓 API   │  │  模型工厂   │  │  外部数据   │  │  业务系统   │  ║  │
-│  ║  │             │  │             │  │  (工商等)   │  │  (可选)     │  ║  │
+│  ║  │ LLM Gateway │  │  模型平台   │  │  数仓 API   │  │  外部数据   │  ║  │
+│  ║  │ (多模型)    │  │ (ML模型)    │  │             │  │  (工商等)   │  ║  │
 │  ║  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  ║  │
 │  ╚═══════════════════════════════════════════════════════════════════════╝  │
-│                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 通用能力层详解
+### 2.2 核心能力层详解
 
-| 层 | 职责 | 借鉴来源 | 实现方式 |
-|----|------|---------|---------|
-| **Planner (规划层)** | 意图理解、Agent 路由、参数提取、任务分解 | JoyAgent | LangGraph 节点 |
-| **Executor (执行层)** | 调度业务 Agent、并行执行、流式输出 | Manus | LangGraph DAG |
-| **Validator (验证层)** | 结果校验、合规检查、异常处理 | Manus | LLM + 规则 |
-| **Memory (记忆层)** | 会话上下文、用户偏好、相似任务复用 | 两者 | Redis + DB |
+| 层 | 职责 | 技术实现 |
+|----|------|---------|
+| **Planner** | 意图理解、Agent 路由、任务分解 | LangGraph + Native Function Calling |
+| **Executor** | 调用 Tool/Skill、并行执行、流式输出 | LangGraph DAG + 异步执行 |
+| **Validator** | 结果校验、合规检查、异常处理 | LLM + 规则引擎 |
+| **Memory** | 会话上下文、用户偏好、任务复用 | Redis + PostgreSQL |
 
-### 2.3 运行时流程
+### 2.3 运行时流程 (Native Function Calling)
 
 ```
-用户输入 → Planner(意图+路由) → Executor(调度Agent) 
-                                       ↓
-        ← 流式事件 ← Validator(校验) ← 业务Agent(调用外部服务)
-                                       ↓
-                               Memory(记录学习)
+用户输入
+    ↓
+┌────────────────────────────────────────────────────────────────┐
+│ LLM (with tools definition)                                    │
+│ - 分析意图                                                      │
+│ - 返回 tool_use (要调用哪些工具)                                │
+└────────────────────────────────────────────────────────────────┘
+    ↓ tool_use
+┌────────────────────────────────────────────────────────────────┐
+│ Executor                                                        │
+│ - 执行工具调用                                                  │
+│ - 发射 SSE 事件 (thinking, tool_call, tool_result)             │
+└────────────────────────────────────────────────────────────────┘
+    ↓ tool_result
+┌────────────────────────────────────────────────────────────────┐
+│ LLM (继续处理)                                                  │
+│ - 分析结果，可能继续调用工具                                    │
+│ - 或生成最终回答                                                │
+└────────────────────────────────────────────────────────────────┘
+    ↓ (循环直到 stop_reason != "tool_use")
+最终回答 → 前端渲染
 ```
 
 ---
 
-## 3. 统一服务调用协议
+## 3. 知识工程体系 (核心升级)
 
-### 3.1 数据服务调用协议
+### 3.1 三层知识模型
 
-```yaml
-# 通用请求格式
-request:
-  service_type: "data_warehouse" | "model_factory" | "external_api"
-  service_id: "string"           # 服务标识
-  method: "query" | "execute"    # 查询或执行
-  params: {}                     # 业务参数
-  timeout_ms: 30000              # 超时时间
-  async: false                   # 是否异步
+| 层级 | 定义 | 粒度 | 管理方式 |
+|------|------|------|---------|
+| **Tool** | 最小可调用单元，封装单一能力 | 原子级 | 数据库 + 前端管理 |
+| **Skill** | 多 Tool 的 DAG 编排 | 模块级 | 可视化编排器 |
+| **Agent** | 业务场景封装，含意图理解 | 任务级 | 配置管理 |
 
-# 通用响应格式
-response:
-  success: boolean
-  request_id: "string"
-  data: {}                       # 返回的结果数据（已计算好的）
-  error:
-    code: "string"
-    message: "string"
-  metadata:
-    execution_time_ms: number
-    source: "string"             # 数据来源标识
-```
-
-### 3.2 服务适配器接口
+### 3.2 Tool (工具) 数据模型
 
 ```python
-class ServiceAdapter(Protocol):
-    """外部服务适配器统一接口"""
+class Tool(SQLModel, table=True):
+    """工具定义 - 最小可调用单元"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True)    # 唯一标识 (如 kechuang_score)
+    display_name: str                              # 显示名称
+    description: str                               # 描述 (给 LLM 理解)
     
-    async def call(
-        self,
-        service_id: str,
-        params: dict,
-        timeout_ms: int = 30000,
-    ) -> ServiceResponse:
-        """同步调用"""
-        ...
+    # === 类型与后端配置 ===
+    tool_type: Literal["ml_model", "data_api", "external_api", "builtin"]
+    service_config: dict = Field(default_factory=dict)
+    # ML模型示例: {
+    #   "platform": "model_factory",
+    #   "model_id": "kechuang_score_v2",
+    #   "version": "latest"
+    # }
     
-    async def submit(
-        self,
-        service_id: str,
-        params: dict,
-        callback_url: str | None = None,
-    ) -> TaskHandle:
-        """异步提交任务"""
-        ...
+    # === Function Calling Schema (核心) ===
+    input_schema: dict       # JSON Schema 格式
+    output_schema: dict      # 输出结构定义
+    examples: list[dict]     # 示例调用 (帮助 LLM 理解)
     
-    async def poll(
-        self,
-        task_id: str,
-    ) -> TaskStatus:
-        """轮询任务状态"""
-        ...
-
-
-# 具体适配器实现
-class DataWarehouseAdapter(ServiceAdapter):
-    """数仓 API 适配器"""
-    base_url: str
-    auth_token: str
-
-class ModelFactoryAdapter(ServiceAdapter):
-    """模型工厂适配器"""
-    base_url: str
+    # === 元数据 ===
+    version: str = "1.0.0"
+    status: Literal["draft", "active", "deprecated"] = "active"
+    category: str = "general"
+    tags: list[str] = Field(default_factory=list)
     
-class ExternalAPIAdapter(ServiceAdapter):
-    """外部数据 API 适配器"""
-    ...
+    # === 权限控制 ===
+    visibility: Literal["public", "department", "role"] = "public"
+    allowed_departments: list[str] = Field(default_factory=list)
+    allowed_roles: list[str] = Field(default_factory=list)
+    
+    # === 统计 ===
+    call_count: int = 0
+    avg_latency_ms: float = 0.0
+    success_rate: float = 1.0
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 ```
 
----
-
-## 4. 实时查询 vs 批量任务
-
-### 4.1 两种模式对比
-
-| 模式 | 触发方式 | 响应方式 | 适用场景 |
-|------|---------|---------|---------|
-| **实时查询** | 用户对话触发 | SSE 流式返回 | 企业主体识别、单客户评分 |
-| **批量任务** | 用户对话触发 | 提交任务 → 轮询/回调 | 白名单建模、批量评分 |
-
-### 4.2 Agent 定义中的模式声明
-
-```yaml
-agent:
-  id: "kechuang_whitelist"
-  name: "科创贷白名单建模"
-  
-  # 执行模式
-  execution_mode: "batch"  # realtime | batch | auto
-  
-  # 批量任务配置
-  batch_config:
-    estimated_duration_minutes: 30
-    result_storage: "oss://agent-results/{task_id}/"
-    notification:
-      type: "webhook"
-      url: "/api/agent/callback"
+**Tool 示例数据**:
+```json
+{
+  "name": "kechuang_score",
+  "display_name": "科创能力评分",
+  "description": "对企业进行科创能力五维评分（创新、增长、稳定、合规、合作）。需要企业统一社会信用代码作为输入。",
+  "tool_type": "ml_model",
+  "service_config": {
+    "platform": "model_factory",
+    "model_id": "kechuang_score_v2",
+    "version": "latest",
+    "timeout_ms": 10000
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "credit_code": {
+        "type": "string",
+        "description": "企业统一社会信用代码"
+      },
+      "include_details": {
+        "type": "boolean",
+        "default": true,
+        "description": "是否返回各维度详细分数"
+      }
+    },
+    "required": ["credit_code"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "total_score": {"type": "number", "description": "综合评分 0-100"},
+      "dimensions": {
+        "type": "object",
+        "properties": {
+          "innovation": {"type": "number"},
+          "growth": {"type": "number"},
+          "stability": {"type": "number"},
+          "compliance": {"type": "number"},
+          "cooperation": {"type": "number"}
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "input": {"credit_code": "91320500XXXX"},
+      "output": {"total_score": 85.5, "dimensions": {"innovation": 90, "growth": 82}}
+    }
+  ],
+  "visibility": "department",
+  "allowed_departments": ["公司金融部", "科技金融部"]
+}
 ```
 
-### 4.3 批量任务流程
-
-```
-用户: "帮我生成苏州科创企业白名单"
-                ↓
-┌─────────────────────────────────────────────────────────┐
-│  Planner 识别：这是批量任务，预计耗时 30 分钟           │
-└─────────────────────────────────────────────────────────┘
-                ↓
-┌─────────────────────────────────────────────────────────┐
-│  向用户确认：                                           │
-│  "该任务预计需要 30 分钟，是否确认提交？"               │
-│  [确认提交] [取消]                                      │
-└─────────────────────────────────────────────────────────┘
-                ↓ 用户确认
-┌─────────────────────────────────────────────────────────┐
-│  提交任务到后端平台                                     │
-│  返回 task_id，进入轮询/等待回调                        │
-└─────────────────────────────────────────────────────────┘
-                ↓
-┌─────────────────────────────────────────────────────────┐
-│  前端展示：                                             │
-│  "任务已提交，任务ID: xxx"                              │
-│  [查看进度] [前往任务中心]                              │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 5. Agent 管理设计
-
-### 5.1 架构
-
-```
-┌───────────────┐      ┌───────────────┐
-│  管理界面 UI  │ ───▶ │   管理 API    │
-│  (前端)       │      │   (后端)      │
-└───────────────┘      └───────┬───────┘
-                               │
-                    ┌──────────┴──────────┐
-                    ↓                     ↓
-            ┌─────────────┐       ┌─────────────┐
-            │  数据库     │       │ YAML 文件   │
-            │  (主存储)   │  同步  │ (导出备份)  │
-            └─────────────┘       └─────────────┘
-```
-
-### 5.2 Agent 数据模型
+### 3.3 Skill (技能) 数据模型
 
 ```python
-class AgentDefinition(BaseModel):
-    """Agent 定义"""
-    id: str                          # 唯一标识
-    name: str                        # 显示名称
-    description: str                 # 描述
-    category: str                    # 分类：营销拓客/风险评估/...
-    version: str                     # 版本号
-    status: Literal["draft", "active", "deprecated"]
-    
-    # 输入参数定义
-    inputs: list[InputParam]
-    
-    # 输出结构定义
-    outputs: OutputSchema
-    
-    # 外部服务调用配置
-    service_calls: list[ServiceCall]
-    
-    # 执行配置
-    execution_mode: Literal["realtime", "batch", "auto"]
-    batch_config: BatchConfig | None
-    
-    # 前端渲染
-    output_component: str            # 组件类型
-    
-    # 元数据
-    created_at: datetime
-    updated_at: datetime
-    created_by: str
-
-
-class InputParam(BaseModel):
-    name: str
-    type: Literal["string", "number", "boolean", "array", "object"]
+class Skill(SQLModel, table=True):
+    """技能定义 - 多工具 DAG 编排"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    display_name: str
     description: str
-    required: bool = False
-    default: Any | None = None
-    enum: list[Any] | None = None   # 可选值枚举
-
-
-class OutputSchema(BaseModel):
-    json_schema: dict                # JSON Schema 定义
-    sample: dict | None = None       # 示例数据
-
-
-class ServiceCall(BaseModel):
-    name: str                        # 调用步骤名称
-    service_type: Literal["data_warehouse", "model_factory", "external_api"]
-    service_id: str                  # 服务标识
-    params_mapping: dict[str, str]   # 参数映射（支持表达式）
-    result_mapping: str | None       # 结果映射到输出字段
+    
+    # === DAG 编排定义 (可视化编辑器生成) ===
+    workflow: dict = Field(default_factory=dict)
+    
+    # === 关联的工具 ===
+    tool_ids: list[uuid.UUID] = Field(default_factory=list)
+    
+    # === 输入输出 (聚合自 Tool 或手动定义) ===
+    input_schema: dict
+    output_schema: dict
+    
+    # === 元数据 ===
+    status: Literal["draft", "active", "deprecated"] = "active"
+    category: str
+    
+    # === 权限 (继承或覆盖) ===
+    visibility: Literal["public", "department", "role"] = "public"
+    allowed_departments: list[str] = Field(default_factory=list)
+    allowed_roles: list[str] = Field(default_factory=list)
 ```
 
-### 5.3 管理界面功能
+**Skill Workflow 定义格式**:
+```json
+{
+  "name": "enterprise_full_analysis",
+  "display_name": "企业全景分析",
+  "description": "综合查询企业基本信息、科创评分、关联企业",
+  "workflow": {
+    "nodes": [
+      {
+        "id": "step1",
+        "tool": "enterprise_query",
+        "params_mapping": {
+          "query": "$.input.company_name"
+        }
+      },
+      {
+        "id": "step2",
+        "tool": "kechuang_score",
+        "depends_on": ["step1"],
+        "params_mapping": {
+          "credit_code": "$.step1.credit_code"
+        }
+      },
+      {
+        "id": "step3",
+        "tool": "relation_graph",
+        "depends_on": ["step1"],
+        "params_mapping": {
+          "credit_code": "$.step1.credit_code",
+          "depth": 2
+        }
+      }
+    ],
+    "output_mapping": {
+      "enterprise": "$.step1",
+      "score": "$.step2",
+      "relations": "$.step3"
+    }
+  }
+}
+```
 
-| 功能 | 说明 |
-|------|-----|
-| **Agent 列表** | 查看所有 Agent，按分类筛选 |
-| **Agent 详情** | 查看/编辑 Agent 定义 |
-| **创建 Agent** | 可视化表单 + JSON 编辑器 |
-| **版本管理** | 版本历史、回滚 |
-| **导入/导出** | YAML 格式导入导出 |
-| **测试调用** | 在管理界面测试 Agent |
-| **调用统计** | 调用次数、成功率、耗时 |
+### 3.4 Agent (业务代理) 数据模型
+
+```python
+class AgentConfig(SQLModel, table=True):
+    """Agent 配置 - 业务场景封装"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    display_name: str
+    description: str
+    icon: str = "🤖"
+    
+    # === 可用的工具和技能 ===
+    available_tool_ids: list[uuid.UUID] = Field(default_factory=list)
+    available_skill_ids: list[uuid.UUID] = Field(default_factory=list)
+    
+    # === 系统提示词 ===
+    system_prompt: str
+    
+    # === 输出渲染 ===
+    output_component: str = "markdown"
+    
+    # === 执行模式 ===
+    execution_mode: Literal["realtime", "batch", "auto"] = "realtime"
+    batch_config: dict | None = None
+    
+    # === 权限 ===
+    visibility: Literal["public", "department", "role"] = "public"
+    allowed_departments: list[str] = Field(default_factory=list)
+    allowed_roles: list[str] = Field(default_factory=list)
+    
+    status: Literal["draft", "active", "deprecated"] = "active"
+```
 
 ---
 
-## 6. 用户端界面设计（参考 Manus）
+## 4. 多模型支持架构
 
-### 6.1 整体布局（两栏式）
+### 4.1 LLM Gateway 设计
+
+```python
+class LLMProvider(str, Enum):
+    CLAUDE = "claude"
+    QWEN = "qwen"
+    GPT = "openai"
+    DEEPSEEK = "deepseek"
+    GLM = "glm"
+
+class LLMConfig(BaseModel):
+    """LLM 配置"""
+    provider: LLMProvider
+    model: str                      # 具体模型名
+    api_key: str | None = None      # 可选覆盖全局配置
+    base_url: str | None = None
+    supports_function_calling: bool = True
+    max_tokens: int = 4096
+    
+class LLMGateway:
+    """多模型网关"""
+    
+    def __init__(self, default_config: LLMConfig):
+        self.default_config = default_config
+        self.providers = {
+            LLMProvider.CLAUDE: ClaudeAdapter(),
+            LLMProvider.QWEN: QwenAdapter(),
+            LLMProvider.GPT: OpenAIAdapter(),
+            LLMProvider.DEEPSEEK: DeepSeekAdapter(),
+            LLMProvider.GLM: GLMAdapter(),
+        }
+    
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        config: LLMConfig | None = None
+    ) -> LLMResponse:
+        """统一的工具调用接口"""
+        cfg = config or self.default_config
+        adapter = self.providers[cfg.provider]
+        
+        return await adapter.chat_with_tools(
+            messages=messages,
+            tools=tools,
+            model=cfg.model,
+            max_tokens=cfg.max_tokens
+        )
+```
+
+### 4.2 模型适配器接口
+
+```python
+class LLMAdapter(Protocol):
+    """LLM 适配器协议"""
+    
+    async def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        model: str,
+        max_tokens: int
+    ) -> LLMResponse:
+        """带工具的对话"""
+        ...
+
+class LLMResponse(BaseModel):
+    """统一响应格式"""
+    content: list[ContentBlock]     # 文本或 tool_use
+    stop_reason: Literal["end_turn", "tool_use", "max_tokens"]
+    usage: dict
+    
+class ContentBlock(BaseModel):
+    type: Literal["text", "tool_use"]
+    text: str | None = None
+    tool_use_id: str | None = None
+    tool_name: str | None = None
+    tool_input: dict | None = None
+```
+
+### 4.3 模型路由策略
+
+```python
+class ModelRouter:
+    """模型路由器 - 根据任务特征选择最佳模型"""
+    
+    async def select_model(
+        self,
+        task_type: str,
+        user_preference: LLMProvider | None = None
+    ) -> LLMConfig:
+        # 用户显式指定
+        if user_preference:
+            return self.get_config(user_preference)
+        
+        # 按任务类型路由
+        routing_rules = {
+            "code_generation": LLMProvider.CLAUDE,
+            "data_analysis": LLMProvider.QWEN,
+            "simple_qa": LLMProvider.DEEPSEEK,
+        }
+        
+        provider = routing_rules.get(task_type, self.default_provider)
+        return self.get_config(provider)
+```
+
+---
+
+## 5. 统一 ML 模型调用接口
+
+### 5.1 模型开发平台适配器
+
+```python
+class ModelPlatformAdapter:
+    """模型开发平台统一调用接口"""
+    
+    def __init__(self, base_url: str, auth_token: str):
+        self.base_url = base_url
+        self.auth_token = auth_token
+        self.client = httpx.AsyncClient(timeout=60.0)
+    
+    async def invoke(
+        self,
+        model_id: str,
+        params: dict,
+        version: str = "latest",
+        timeout_ms: int = 30000
+    ) -> ModelResponse:
+        """同步调用模型"""
+        response = await self.client.post(
+            f"{self.base_url}/v1/models/{model_id}/invoke",
+            json={
+                "version": version,
+                "params": params
+            },
+            headers={"Authorization": f"Bearer {self.auth_token}"},
+            timeout=timeout_ms / 1000
+        )
+        return ModelResponse(**response.json())
+    
+    async def submit_batch(
+        self,
+        model_id: str,
+        params: dict,
+        callback_url: str | None = None
+    ) -> BatchTaskHandle:
+        """提交批量任务"""
+        response = await self.client.post(
+            f"{self.base_url}/v1/models/{model_id}/batch",
+            json={
+                "params": params,
+                "callback_url": callback_url
+            },
+            headers={"Authorization": f"Bearer {self.auth_token}"}
+        )
+        return BatchTaskHandle(**response.json())
+    
+    async def get_task_status(self, task_id: str) -> BatchTaskStatus:
+        """查询批量任务状态"""
+        response = await self.client.get(
+            f"{self.base_url}/v1/tasks/{task_id}",
+            headers={"Authorization": f"Bearer {self.auth_token}"}
+        )
+        return BatchTaskStatus(**response.json())
+
+class ModelResponse(BaseModel):
+    success: bool
+    model_id: str
+    model_version: str
+    data: dict
+    metadata: dict  # execution_time_ms, etc.
+
+class BatchTaskHandle(BaseModel):
+    task_id: str
+    status: str
+    estimated_duration_minutes: int
+
+class BatchTaskStatus(BaseModel):
+    task_id: str
+    status: Literal["pending", "running", "completed", "failed"]
+    progress: int  # 0-100
+    result_url: str | None = None
+    error: str | None = None
+```
+
+### 5.2 Tool 执行器
+
+```python
+class ToolExecutor:
+    """工具执行器 - 根据 Tool 定义调用对应服务"""
+    
+    def __init__(
+        self,
+        model_platform: ModelPlatformAdapter,
+        data_warehouse: DataWarehouseAdapter,
+        external_api: ExternalAPIAdapter
+    ):
+        self.adapters = {
+            "ml_model": model_platform,
+            "data_api": data_warehouse,
+            "external_api": external_api
+        }
+    
+    async def execute(self, tool: Tool, params: dict) -> dict:
+        """执行工具调用"""
+        adapter = self.adapters[tool.tool_type]
+        config = tool.service_config
+        
+        if tool.tool_type == "ml_model":
+            response = await adapter.invoke(
+                model_id=config["model_id"],
+                params=params,
+                version=config.get("version", "latest"),
+                timeout_ms=config.get("timeout_ms", 30000)
+            )
+            return response.data
+        
+        elif tool.tool_type == "data_api":
+            return await adapter.query(
+                service_id=config["service_id"],
+                params=params
+            )
+        
+        elif tool.tool_type == "external_api":
+            return await adapter.call(
+                endpoint=config["endpoint"],
+                method=config.get("method", "POST"),
+                params=params
+            )
+```
+
+---
+
+## 6. 可视化 Skill 编排器
+
+### 6.1 编排器界面设计
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  📋 Skill 编排器: enterprise_full_analysis                    [保存] [测试]│
+├─────────────────────────────────────────┬──────────────────────────────────┤
+│                                         │                                  │
+│  🔧 工具库                              │  📊 编排画布                     │
+│  ┌─────────────────────────────────┐   │                                  │
+│  │ 🔍 搜索工具...                  │   │    ┌─────────────────┐           │
+│  ├─────────────────────────────────┤   │    │    📥 输入      │           │
+│  │ 📁 数据查询                     │   │    │  company_name   │           │
+│  │   ├─ enterprise_query           │   │    └────────┬────────┘           │
+│  │   ├─ relation_graph             │   │             │                    │
+│  │   └─ customer_info              │   │             ▼                    │
+│  │                                 │   │    ┌─────────────────┐           │
+│  │ 📁 ML模型                       │   │    │ enterprise_query│           │
+│  │   ├─ kechuang_score             │   │    │ (企业查询)      │           │
+│  │   ├─ credit_score               │   │    └────────┬────────┘           │
+│  │   └─ risk_evaluation            │   │             │                    │
+│  │                                 │   │      ┌──────┴──────┐             │
+│  │ 📁 外部API                      │   │      ▼             ▼             │
+│  │   ├─ gsxt_api                   │   │ ┌─────────┐   ┌─────────┐       │
+│  │   └─ patent_api                 │   │ │kechuang │   │relation │       │
+│  └─────────────────────────────────┘   │ │ _score  │   │ _graph  │       │
+│                                         │ └────┬────┘   └────┬────┘       │
+│  ─────────────────────────────────────  │      │             │            │
+│                                         │      └──────┬──────┘            │
+│  📝 节点配置                            │             ▼                   │
+│  ┌─────────────────────────────────┐   │    ┌─────────────────┐          │
+│  │ 当前节点: kechuang_score        │   │    │    📤 输出      │          │
+│  │                                 │   │    │ enterprise,     │          │
+│  │ 参数映射:                       │   │    │ score, relations│          │
+│  │ credit_code = $.step1.credit_code│  │    └─────────────────┘          │
+│  │                                 │   │                                  │
+│  │ 依赖: [step1: enterprise_query] │   │                                  │
+│  └─────────────────────────────────┘   │                                  │
+│                                         │                                  │
+└─────────────────────────────────────────┴──────────────────────────────────┘
+```
+
+### 6.2 前端组件结构
+
+```typescript
+// components/Admin/SkillEditor/
+├── SkillEditor.tsx           // 主编排器容器
+├── ToolPalette.tsx           // 左侧工具库面板
+├── WorkflowCanvas.tsx        // 中间 DAG 画布 (基于 ReactFlow)
+├── NodeConfigPanel.tsx       // 右侧节点配置面板
+├── ParamMappingEditor.tsx    // 参数映射编辑器 (JSONPath)
+└── SkillTester.tsx           // 测试执行面板
+```
+
+### 6.3 ReactFlow 集成
+
+```typescript
+import ReactFlow, { Node, Edge } from 'reactflow'
+
+interface WorkflowNode extends Node {
+  data: {
+    tool: Tool
+    paramsMapping: Record<string, string>  // JSONPath 映射
+  }
+}
+
+const SkillWorkflowEditor: React.FC<{
+  skill: Skill
+  availableTools: Tool[]
+  onSave: (workflow: SkillWorkflow) => void
+}> = ({ skill, availableTools, onSave }) => {
+  const [nodes, setNodes] = useState<WorkflowNode[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  
+  // 从 Skill 定义加载节点和边
+  useEffect(() => {
+    const { nodes, edges } = parseWorkflowToGraph(skill.workflow)
+    setNodes(nodes)
+    setEdges(edges)
+  }, [skill])
+  
+  // 保存时转换回 JSON 格式
+  const handleSave = () => {
+    const workflow = graphToWorkflow(nodes, edges)
+    onSave(workflow)
+  }
+  
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      nodeTypes={customNodeTypes}
+    />
+  )
+}
+```
+
+---
+
+## 7. LangGraph 编排引擎
+
+### 7.1 状态定义
+
+```python
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, Annotated
+import operator
+
+class AgentState(TypedDict):
+    """Agent 运行时状态"""
+    # === 输入 ===
+    user_input: str
+    conversation_id: str
+    user_context: dict  # 用户信息、权限等
+    
+    # === LLM 交互 ===
+    messages: Annotated[list, operator.add]
+    llm_config: LLMConfig | None  # 可指定模型
+    
+    # === 工具调用 ===
+    available_tools: list[Tool]
+    pending_tool_calls: list[dict]
+    tool_results: dict
+    
+    # === 控制 ===
+    iteration: int
+    max_iterations: int
+    should_continue: bool
+    error: str | None
+    
+    # === 事件流 ===
+    events: list[AgentEvent]  # 待发送的 SSE 事件
+```
+
+### 7.2 状态图构建
+
+```python
+def build_agent_graph(
+    llm_gateway: LLMGateway,
+    tool_executor: ToolExecutor
+) -> CompiledGraph:
+    """构建 Agent 状态图"""
+    
+    graph = StateGraph(AgentState)
+    
+    # === 节点定义 ===
+    
+    async def prepare_tools_node(state: AgentState) -> dict:
+        """准备工具定义 (权限过滤)"""
+        user = state["user_context"]
+        tools = await get_user_available_tools(user)
+        
+        # 转换为 Function Calling 格式
+        tool_defs = [format_tool_for_llm(t) for t in tools]
+        
+        return {
+            "available_tools": tools,
+            "events": [AgentEvent(type="thinking", data={"step": "准备可用工具"})]
+        }
+    
+    async def llm_node(state: AgentState) -> dict:
+        """调用 LLM"""
+        tool_defs = [format_tool_for_llm(t) for t in state["available_tools"]]
+        
+        response = await llm_gateway.chat_with_tools(
+            messages=state["messages"],
+            tools=tool_defs,
+            config=state.get("llm_config")
+        )
+        
+        # 解析响应
+        tool_calls = []
+        text_content = ""
+        
+        for block in response.content:
+            if block.type == "tool_use":
+                tool_calls.append({
+                    "id": block.tool_use_id,
+                    "name": block.tool_name,
+                    "input": block.tool_input
+                })
+            elif block.type == "text":
+                text_content += block.text
+        
+        events = []
+        if tool_calls:
+            for call in tool_calls:
+                events.append(AgentEvent(
+                    type="tool_call",
+                    data={"id": call["id"], "name": call["name"], "status": "pending"}
+                ))
+        
+        return {
+            "pending_tool_calls": tool_calls,
+            "should_continue": response.stop_reason == "tool_use",
+            "messages": [{"role": "assistant", "content": response.content}],
+            "events": events
+        }
+    
+    async def executor_node(state: AgentState) -> dict:
+        """执行工具调用"""
+        results = {}
+        tool_result_messages = []
+        events = []
+        
+        tools_by_name = {t.name: t for t in state["available_tools"]}
+        
+        for call in state["pending_tool_calls"]:
+            tool = tools_by_name[call["name"]]
+            
+            events.append(AgentEvent(
+                type="tool_call",
+                data={"id": call["id"], "name": call["name"], "status": "calling"}
+            ))
+            
+            try:
+                result = await tool_executor.execute(tool, call["input"])
+                results[call["id"]] = result
+                
+                events.append(AgentEvent(
+                    type="tool_result",
+                    data={"id": call["id"], "status": "success", "preview": str(result)[:200]}
+                ))
+                
+                tool_result_messages.append({
+                    "type": "tool_result",
+                    "tool_use_id": call["id"],
+                    "content": json.dumps(result, ensure_ascii=False)
+                })
+                
+            except Exception as e:
+                events.append(AgentEvent(
+                    type="tool_result",
+                    data={"id": call["id"], "status": "error", "error": str(e)}
+                ))
+        
+        return {
+            "tool_results": results,
+            "pending_tool_calls": [],
+            "iteration": state["iteration"] + 1,
+            "messages": [{"role": "user", "content": tool_result_messages}],
+            "events": events
+        }
+    
+    def should_continue(state: AgentState) -> str:
+        """决定下一步"""
+        if not state["should_continue"]:
+            return "end"
+        if state["iteration"] >= state["max_iterations"]:
+            return "end"
+        if state["pending_tool_calls"]:
+            return "execute"
+        return "llm"
+    
+    # === 构建图 ===
+    graph.add_node("prepare", prepare_tools_node)
+    graph.add_node("llm", llm_node)
+    graph.add_node("execute", executor_node)
+    
+    graph.set_entry_point("prepare")
+    graph.add_edge("prepare", "llm")
+    
+    graph.add_conditional_edges(
+        "llm",
+        should_continue,
+        {"execute": "execute", "end": END}
+    )
+    
+    graph.add_edge("execute", "llm")
+    
+    return graph.compile()
+```
+
+---
+
+## 8. SSE 事件流式协议
+
+### 8.1 事件类型定义
+
+```typescript
+type AgentEvent = 
+  | { type: "thinking"; data: { step: string; detail?: string } }
+  | { type: "tool_call"; data: { id: string; name: string; status: "pending" | "calling" | "success" | "error" } }
+  | { type: "tool_result"; data: { id: string; status: "success" | "error"; preview?: string; error?: string } }
+  | { type: "progress"; data: { percent: number; message: string } }
+  | { type: "clarification"; data: { question: string; options: Option[] } }
+  | { type: "component"; data: { component_type: string; props: any } }
+  | { type: "message"; data: { content: string; format?: "text" | "markdown" } }
+  | { type: "batch_submitted"; data: { task_id: string; estimated_minutes: number } }
+  | { type: "done"; data: { success: boolean } }
+  | { type: "error"; data: { code: string; message: string } }
+```
+
+### 8.2 后端 SSE 接口
+
+```python
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest, user: User = Depends(get_current_user)):
+    """流式对话接口"""
+    
+    async def event_generator():
+        agent_graph = build_agent_graph(llm_gateway, tool_executor)
+        
+        initial_state = {
+            "user_input": request.message,
+            "conversation_id": request.conversation_id,
+            "user_context": {"user_id": user.id, "department": user.department, "roles": user.roles},
+            "messages": [{"role": "user", "content": request.message}],
+            "llm_config": request.llm_config,
+            "iteration": 0,
+            "max_iterations": 10,
+            "should_continue": True,
+            "events": []
+        }
+        
+        async for state in agent_graph.astream(initial_state):
+            # 发送累积的事件
+            for event in state.get("events", []):
+                yield {
+                    "event": event.type,
+                    "data": json.dumps(event.data, ensure_ascii=False)
+                }
+            
+            # 如果结束，发送最终消息
+            if not state.get("should_continue", True):
+                final = state["messages"][-1]["content"]
+                if isinstance(final, list):
+                    text = "".join(b.text for b in final if b.type == "text")
+                else:
+                    text = str(final)
+                yield {"event": "message", "data": json.dumps({"content": text})}
+        
+        yield {"event": "done", "data": "{}"}
+    
+    return EventSourceResponse(event_generator())
+```
+
+---
+
+## 9. 权限控制设计
+
+### 9.1 权限模型
+
+```
+用户 ──belongs to──▶ 部门 ──has role──▶ 角色
+                       │                  │
+                       ▼                  ▼
+                  部门可见资源         角色可用资源
+                       │                  │
+                       └────────┬─────────┘
+                                ▼
+                        用户最终可用资源 = 交集
+```
+
+### 9.2 资源权限配置
+
+```python
+class ResourcePermission(BaseModel):
+    """统一权限配置 (Tool/Skill/Agent 通用)"""
+    visibility: Literal["public", "department", "role"] = "public"
+    allowed_departments: list[str] = []
+    allowed_roles: list[str] = []
+
+def check_permission(user: User, resource: Tool | Skill | AgentConfig) -> bool:
+    """统一权限检查"""
+    perm = resource  # Tool/Skill/Agent 都有相同的权限字段
+    
+    if perm.visibility == "public":
+        return True
+    
+    if perm.visibility == "department":
+        return user.department in perm.allowed_departments
+    
+    if perm.visibility == "role":
+        return any(role in perm.allowed_roles for role in user.roles)
+    
+    return False
+
+async def get_user_available_tools(user: User) -> list[Tool]:
+    """获取用户可用的工具列表"""
+    all_tools = await db.query(Tool).filter(Tool.status == "active").all()
+    return [t for t in all_tools if check_permission(user, t)]
+```
+
+---
+
+## 10. 前端组件体系
+
+### 10.1 组件分类
+
+| 类型 | 组件名 | 适用场景 |
+|------|-------|---------|
+| **文本类** | `text_message` | 普通文字回复 |
+| | `markdown_content` | 富文本、报告 |
+| **卡片类** | `entity_card` | 企业信息 |
+| | `score_card` | 评分展示 |
+| | `summary_card` | 摘要卡片 |
+| **表格类** | `data_table` | 数据列表 |
+| | `comparison_table` | 对比表格 |
+| **图表类** | `radar_chart` | 雷达图 |
+| | `bar_chart` | 柱状图 |
+| | `line_chart` | 折线图 |
+| **关系类** | `relation_graph` | 关系图谱 |
+| | `tree_view` | 股权穿透 |
+| **交互类** | `candidate_list` | 候选选择 (反问) |
+| | `action_buttons` | 操作按钮 |
+
+### 10.2 动态渲染器
+
+```typescript
+// DynamicComponents/ComponentRenderer.tsx
+const componentRegistry: Record<string, React.ComponentType<any>> = {
+  entity_card: EntityCard,
+  score_card: ScoreCard,
+  data_table: DataTable,
+  radar_chart: RadarChart,
+  relation_graph: RelationGraph,
+  candidate_list: CandidateList,
+  markdown_content: MarkdownContent,
+  // ...
+}
+
+export const ComponentRenderer: React.FC<{
+  type: string
+  props: any
+  actions?: Action[]
+}> = ({ type, props, actions }) => {
+  const Component = componentRegistry[type]
+  
+  if (!Component) {
+    console.warn(`Unknown component type: ${type}`)
+    return <div>Unknown component: {type}</div>
+  }
+  
+  return (
+    <div className="dynamic-component">
+      <Component {...props} />
+      {actions && <ActionButtons actions={actions} />}
+    </div>
+  )
+}
+```
+
+---
+
+## 11. 项目结构
+
+```
+unified-agent-portal/
+├── backend/
+│   ├── app/
+│   │   ├── api/routes/
+│   │   │   ├── auth.py
+│   │   │   ├── users.py
+│   │   │   ├── chat.py              # SSE 流式对话
+│   │   │   ├── tools.py             # 🆕 Tool CRUD
+│   │   │   ├── skills.py            # 🆕 Skill CRUD
+│   │   │   ├── agents.py            # Agent CRUD
+│   │   │   └── tasks.py             # 批量任务
+│   │   │
+│   │   ├── models/
+│   │   │   ├── user.py
+│   │   │   ├── tool.py              # 🆕 Tool 模型
+│   │   │   ├── skill.py             # 🆕 Skill 模型
+│   │   │   ├── agent.py
+│   │   │   ├── conversation.py
+│   │   │   └── task.py
+│   │   │
+│   │   ├── engine/
+│   │   │   ├── graph.py             # LangGraph 状态图
+│   │   │   ├── planner.py
+│   │   │   ├── executor.py
+│   │   │   ├── validator.py
+│   │   │   └── memory.py
+│   │   │
+│   │   ├── llm/                     # 🆕 多模型支持
+│   │   │   ├── gateway.py           # LLM Gateway
+│   │   │   ├── adapters/
+│   │   │   │   ├── claude.py
+│   │   │   │   ├── qwen.py
+│   │   │   │   ├── openai.py
+│   │   │   │   └── deepseek.py
+│   │   │   └── router.py            # 模型路由
+│   │   │
+│   │   ├── adapters/
+│   │   │   ├── base.py
+│   │   │   ├── model_platform.py    # 🆕 统一 ML 接口
+│   │   │   ├── data_warehouse.py
+│   │   │   └── external_api.py
+│   │   │
+│   │   └── agent/                   # 业务 Agent
+│   │       ├── base.py
+│   │       ├── registry.py
+│   │       └── .../
+│   │
+│   └── alembic/
+│
+├── frontend/
+│   ├── src/
+│   │   ├── routes/_layout/
+│   │   │   ├── index.tsx            # 主对话界面
+│   │   │   ├── settings.tsx
+│   │   │   └── admin/               # 🆕 管理后台
+│   │   │       ├── tools.tsx        # 工具管理
+│   │   │       ├── skills.tsx       # 技能管理 (含编排器)
+│   │   │       └── agents.tsx       # Agent 管理
+│   │   │
+│   │   ├── components/
+│   │   │   ├── Chat/
+│   │   │   ├── ThinkingChain/
+│   │   │   ├── DynamicComponents/
+│   │   │   ├── Sidebar/
+│   │   │   └── Admin/
+│   │   │       ├── ToolEditor.tsx
+│   │   │       ├── ToolTester.tsx
+│   │   │       ├── SkillEditor/     # 🆕 可视化编排器
+│   │   │       │   ├── WorkflowCanvas.tsx
+│   │   │       │   ├── ToolPalette.tsx
+│   │   │       │   └── NodeConfig.tsx
+│   │   │       └── AgentConfigurator.tsx
+│   │   │
+│   │   ├── hooks/
+│   │   │   ├── useSSE.ts
+│   │   │   └── useTools.ts          # 🆕
+│   │   │
+│   │   └── stores/
+│   │       ├── chatStore.ts
+│   │       ├── toolStore.ts         # 🆕
+│   │       └── agentStore.ts
+│   │
+│   └── package.json
+│
+└── docs/
+    ├── implementation_plan.md       # 本文档
+    └── agent-development.md
+```
+
+---
+
+## 12. 用户端界面设计
+
+> **技术栈**: React 18 + TanStack Router + Zustand + shadcn/ui + Tailwind CSS
+
+### 12.1 整体布局
 
 ```
 ┌────────────────────┬──────────────────────────────────────────────────────────┐
 │                    │                                                          │
-│   📂 左侧导航       │                    💬 主对话/执行区                       │
-│   (220px, 可折叠)   │                                                          │
+│   📂 左侧导航       │                    💬 主内容区                           │
+│   (可折叠侧边栏)    │                                                          │
 │                    │                                                          │
 │ ┌────────────────┐ │  ┌──────────────────────────────────────────────────┐   │
 │ │ ➕ 新建对话    │ │  │                                                  │   │
-│ └────────────────┘ │  │      🤖 您好，我是对公业务智能助手                │   │
-│                    │  │         我能为您做什么？                          │   │
-│ 🔍 搜索历史        │  │                                                  │   │
-│                    │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐│   │
-│ ━━━━━━━━━━━━━━━━  │  │  │ 🏢      │ │ 📊      │ │ 💰      │ │ 🔗      ││   │
-│ 📋 我的 Agent      │  │  │企业识别 │ │科创评价 │ │客户价值 │ │交易对手 ││   │
-│   • 企业主体识别   │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘│   │
-│   • 科创评价       │  │              [查看更多 Agent...]                 │   │
-│   • 客户价值评估   │  │                                                  │   │
-│   • 交易对手挖掘   │  └──────────────────────────────────────────────────┘   │
-│   • 供应链金融     │                                                          │
-│                    │  ┌──────────────────────────────────────────────────┐   │
-│ ━━━━━━━━━━━━━━━━  │  │  💬 输入您的问题...                              │   │
-│ 📜 历史对话        │  │                                       [发送 ↩]   │   │
-│   🕐 先进数通查询  │  └──────────────────────────────────────────────────┘   │
-│   🕐 科创白名单    │                                                          │
-│   🕐 客户价值分析  │                                                          │
+│ └────────────────┘ │  │    根据路由切换不同页面内容                       │   │
+│                    │  │                                                  │   │
+│ 🔍 搜索历史        │  │    - /          主对话界面                        │   │
+│                    │  │    - /settings  设置页面                         │   │
+│ ━━━━━━━━━━━━━━━━  │  │    - /admin     管理后台                         │   │
+│ 📋 我的 Agent      │  │    - /agents    Agent 管理                       │   │
+│   • 企业主体识别   │  │    - /tasks     任务中心                         │   │
+│   • 科创评价       │  │                                                  │   │
+│   • 客户价值评估   │  └──────────────────────────────────────────────────┘   │
 │                    │                                                          │
 │ ━━━━━━━━━━━━━━━━  │                                                          │
-│ 👤 用户 / ⚙️ 设置  │                                                          │
+│ 📜 历史对话        │                                                          │
+│   🕐 先进数通查询  │                                                          │
+│   🕐 科创白名单    │                                                          │
+│                    │                                                          │
+│ ━━━━━━━━━━━━━━━━  │                                                          │
+│ 👤 用户菜单        │                                                          │
 │ 🌙/☀️ 主题切换     │                                                          │
 └────────────────────┴──────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 任务执行流式展示（核心体验）
+### 12.2 页面路由结构
 
-参考 Manus 的任务执行展示，在对话区实时呈现：
+| 路由 | 页面 | 组件文件 | 说明 |
+|------|------|---------|------|
+| `/` | 主对话界面 | `routes/_layout/index.tsx` | 对话交互核心页 |
+| `/settings` | 设置页面 | `routes/_layout/settings.tsx` | 用户设置、模型配置 |
+| `/admin` | 管理后台 | `routes/_layout/admin.tsx` | 用户管理 |
+| `/agents` | Agent 管理 | `routes/_layout/agents.tsx` | Agent 配置 |
+| `/tasks` | 任务中心 | `routes/_layout/tasks.tsx` | 批量任务管理 |
+| `/login` | 登录页 | `routes/login.tsx` | 用户认证 |
+| `/signup` | 注册页 | `routes/signup.tsx` | 用户注册 |
+
+---
+
+### 12.3 主对话界面 (`/`)
+
+#### 12.3.1 新对话状态 (空消息)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  💬 对话区                                                                   │
+│                                                                               │
+│                                                                               │
+│                                                                               │
+│                     ╔══════════════════════════════════════╗                 │
+│                     ║                                      ║                 │
+│                     ║   What can I help you with?          ║                 │
+│                     ║                                      ║                 │
+│                     ╚══════════════════════════════════════╝                 │
+│                                                                               │
+│                     ┌──────────────────────────────────────┐                 │
+│                     │  💬 输入您的问题...                  │                 │
+│                     │                         📎 🎤 [发送] │                 │
+│                     └──────────────────────────────────────┘                 │
+│                                                                               │
+│                     ┌──────────┐ ┌──────────┐ ┌──────────┐                  │
+│                     │ 🏢       │ │ 📊       │ │ 💰       │                  │
+│                     │ 企业识别 │ │ 科创评价 │ │ 客户价值 │                  │
+│                     │          │ │          │ │          │                  │
+│                     │ 快速识别 │ │ 五维评分 │ │ 价值评估 │                  │
+│                     └──────────┘ └──────────┘ └──────────┘                  │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**组件结构**:
+- `ChatPage` → 主页面容器
+- `InputBox` → 输入框组件 (支持 Shift+Enter 换行, 拖拽上传)
+- `AgentCards` → Agent 快捷入口卡片
+
+#### 12.3.2 对话进行状态 (有消息)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  💬 对话区                                                     [清空] [导出] │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                               │
 │  👤 用户：帮我查一下先进数通的基本信息和关联企业                             │
@@ -359,13 +1204,10 @@ class ServiceCall(BaseModel):
 │                                                                               │
 │  ┌────────────────────────────────────────────────────────────────────┐     │
 │  │  🔍 执行详情                                           [展开/收起] │     │
-│  │  ├─ ✅ 正在查询工商数据...                                         │     │
-│  │  │     → 调用服务：enterprise_search                               │     │
+│  │  ├─ ✅ 调用服务：enterprise_search                                 │     │
 │  │  │     → 参数：{ query: "先进数通" }                               │     │
 │  │  │     → 结果：找到 1 条匹配                                       │     │
-│  │  ├─ 🔄 正在查询关联企业...                                         │     │
-│  │  │     → 调用服务：relation_graph                                  │     │
-│  │  │     → 参数：{ credit_code: "91110000..." }                      │     │
+│  │  ├─ 🔄 调用服务：relation_graph                                    │     │
 │  │  └─ ○  待执行：生成报告                                            │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                               │
@@ -375,67 +1217,311 @@ class ServiceCall(BaseModel):
 │  │  │  先进数通信息技术股份有限公司                               │   │     │
 │  │  │  统一社会信用代码：91110000XXXXXXXX                         │   │     │
 │  │  │  法定代表人：XXX       注册资本：50,000万                   │   │     │
-│  │  │                                                             │   │     │
 │  │  │  [一键带入]  [查看详情]  [股权穿透]                         │   │     │
 │  │  └────────────────────────────────────────────────────────────┘   │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
 │  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │  🔗 关联企业图谱                                    (加载中...)    │     │
-│  │  ┌────────────────────────────────────────────────────────────┐   │     │
-│  │  │                    [母公司]                                 │   │     │
-│  │  │                        │                                    │   │     │
-│  │  │               ┌───────┼───────┐                            │   │     │
-│  │  │               │       │       │                             │   │     │
-│  │  │          [先进数通] [兄弟A] [兄弟B]                         │   │     │
-│  │  │               │                                             │   │     │
-│  │  │          ┌────┼────┐                                       │   │     │
-│  │  │          │    │    │                                        │   │     │
-│  │  │       [子1] [子2] [子3]                                     │   │     │
-│  │  └────────────────────────────────────────────────────────────┘   │     │
+│  │  💬 继续输入...                                       📎 🎤 [发送] │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
-│                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 左侧边栏设计
+**组件结构**:
+- `MessageList` → 消息列表容器
+- `ThinkingMessage` → 思维链/执行进度展示
+- `DynamicComponents/*` → 动态渲染的业务组件
+- `InputBox` → 底部固定输入框
 
-| 区域 | 功能 | 说明 |
-|------|------|------|
-| **新建对话** | 开始新对话 | 顶部按钮 |
-| **搜索** | 搜索历史对话 | 快速定位 |
-| **我的 Agent** | 用户可用的 Agent 列表 | 根据权限展示 |
-| **历史对话** | 历史对话记录 | 按时间排序 |
-| **用户/设置** | 个人信息、系统设置 | 底部 |
-| **主题切换** | 深色/浅色模式 | 一键切换 |
+---
 
-### 6.4 Agent 卡片设计
+### 12.4 侧边栏组件 (`Sidebar/`)
+
+#### 12.4.1 组件结构
+
+| 组件 | 功能 |
+|------|------|
+| `AppSidebar.tsx` | 侧边栏主容器 |
+| `NewConversationButton.tsx` | 新建对话按钮 |
+| `AgentList.tsx` | Agent 列表 (权限过滤) |
+| `ConversationList.tsx` | 历史对话列表 |
+| `SidebarConversationItem.tsx` | 单个对话项 (hover 菜单) |
+| `User.tsx` | 用户头像菜单 (设置/登出/主题) |
+
+#### 12.4.2 历史对话弹窗
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Agent 快捷入口（卡片形式）                                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │     🏢       │  │     📊       │  │     💰       │              │
-│  │   企业识别   │  │   科创评价   │  │   客户价值   │              │
-│  │              │  │              │  │              │              │
-│  │  快速识别    │  │  五维评分    │  │  价值评估    │              │
-│  │  企业主体    │  │  精准定位    │  │  精准营销    │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │     🔗       │  │     📈       │  │     ➕       │              │
-│  │  交易对手    │  │  供应链金融  │  │              │              │
-│  │              │  │              │  │   查看更多   │              │
-│  │  挖掘上下游  │  │  链式拓客    │  │   ...        │              │
-│  │  高潜客户    │  │  精准营销    │  │              │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│  📜 历史对话                                                    🔍 [搜索] │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  📌 置顶对话                                                                │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ 🕐 先进数通企业分析          2 小时前                    ⋮          │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  今天                                                                       │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ 🕐 科创贷白名单筛选          4 小时前                    ⋮          │   │
+│  ├────────────────────────────────────────────────────────────────────┤   │
+│  │ 🕐 交易对手挖掘              昨天                        ⋮          │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ⋮ 菜单选项:                                                                │
+│    • 📝 重命名                                                              │
+│    • 📌 置顶 / 取消置顶                                                     │
+│    • 🗑️ 删除                                                                │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.5 反问模式交互
+**组件**: `HistoryModal.tsx`
+
+---
+
+### 12.5 设置页面 (`/settings`)
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  ⚙️ 设置                                                                   │
+├───────────────────────────┬────────────────────────────────────────────────┤
+│                           │                                                 │
+│  个人信息                 │  👤 个人信息                                   │
+│  ─────────────            │  ┌──────────────────────────────────────────┐  │
+│  • 用户信息               │  │  头像: [🖼️ 点击上传]                     │  │
+│  • 密码修改               │  │  用户名: [张三                         ] │  │
+│  • 删除账户               │  │  邮箱: [zhangsan@example.com           ] │  │
+│                           │  │  部门: 公司金融部                        │  │
+│  模型配置                 │  │                            [保存修改]    │  │
+│  ─────────────            │  └──────────────────────────────────────────┘  │
+│  • 模型提供商             │                                                 │
+│                           │  🔐 密码修改                                   │
+│                           │  ┌──────────────────────────────────────────┐  │
+│                           │  │  当前密码: [••••••••                   ] │  │
+│                           │  │  新密码:   [••••••••                   ] │  │
+│                           │  │  确认密码: [••••••••                   ] │  │
+│                           │  │                            [修改密码]    │  │
+│                           │  └──────────────────────────────────────────┘  │
+│                           │                                                 │
+└───────────────────────────┴────────────────────────────────────────────────┘
+```
+
+**组件结构**:
+- `UserSettings/UserInformation.tsx` → 用户信息编辑 (含头像上传)
+- `UserSettings/ChangePassword.tsx` → 密码修改
+- `UserSettings/DeleteAccount.tsx` → 删除账户
+- `ModelSettings/` → 模型提供商配置
+
+---
+
+### 12.6 模型配置页面 (`ModelSettings/`)
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  🤖 模型提供商配置                                          [+ 添加提供商] │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │  🟢 Claude (Anthropic)                                    [编辑]    │   │
+│  │  模型: claude-sonnet-4-20250514                                     │   │
+│  │  状态: 已配置 ✅                                                    │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │  🟡 Qwen (阿里云)                                         [编辑]    │   │
+│  │  模型: qwen-max                                                     │   │
+│  │  状态: 待配置 ⚠️                                                    │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │  ⚪ DeepSeek                                               [配置]   │   │
+│  │  状态: 未配置                                                       │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**组件结构**:
+- `ModelSettings/ProviderList.tsx` → 提供商列表
+- `ModelSettings/ProviderListItem.tsx` → 单个提供商项
+- `ModelSettings/ProviderDetail.tsx` → 提供商详情/编辑
+- `ModelSettings/AddProviderDialog.tsx` → 添加提供商对话框
+
+---
+
+### 12.7 管理后台 (`/admin`)
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  👥 用户管理                                                [+ 添加用户]  │
+├────────────────────────────────────────────────────────────────────────────┤
+│  🔍 搜索用户...                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │  邮箱              │ 全名     │ 部门       │ 角色   │ 状态 │ 操作  │   │
+│  ├────────────────────┼──────────┼────────────┼────────┼──────┼───────┤   │
+│  │ admin@example.com  │ 管理员   │ 技术部     │ admin  │ ✅   │ ⋮     │   │
+│  │ zhangsan@corp.com  │ 张三     │ 公司金融部 │ analyst│ ✅   │ ⋮     │   │
+│  │ lisi@corp.com      │ 李四     │ 风控部     │ manager│ ✅   │ ⋮     │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ⋮ 操作菜单:                                                                │
+│    • ✏️ 编辑用户                                                            │
+│    • 🗑️ 删除用户                                                            │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**组件结构**:
+- `Admin/columns.tsx` → 表格列定义
+- `Admin/AddUser.tsx` → 添加用户对话框
+- `Admin/EditUser.tsx` → 编辑用户对话框
+- `Admin/DeleteUser.tsx` → 删除确认对话框
+- `Admin/UserActionsMenu.tsx` → 操作菜单
+
+---
+
+### 12.8 知识工程管理 (规划中)
+
+#### 12.8.1 工具管理 (`/admin/tools`)
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  🔧 工具管理                                                [+ 创建工具]  │
+├────────────────────────────────────────────────────────────────────────────┤
+│  🔍 搜索工具...            分类: [全部 ▼]  类型: [全部 ▼]  状态: [全部 ▼] │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ 🤖 kechuang_score                                  [编辑] [测试]   │   │
+│  │ 科创能力评分模型                                                    │   │
+│  │ 类型: ML模型  │  版本: v2.1.3  │  调用: 12,345次  │  成功率: 99.2% │   │
+│  │ 权限: 公司金融部, 科技金融部                                        │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐   │
+│  │ 📊 enterprise_query                                [编辑] [测试]   │   │
+│  │ 数仓企业信息查询                                                    │   │
+│  │ 类型: 数仓API  │  版本: v1.0.0  │  调用: 45,678次  │  成功率: 99.8%│   │
+│  │ 权限: 公开                                                          │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 12.8.2 工具编辑器
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  🔧 编辑工具: kechuang_score                                  [保存] [取消]│
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  基本信息                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 标识符:  [kechuang_score          ]                                  │  │
+│  │ 显示名:  [科创能力评分             ]                                  │  │
+│  │ 描述:    [对企业进行科创能力五维评分...                              ]  │  │
+│  │ 类型:    [ML模型 ▼]      分类: [评分类 ▼]                            │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  服务配置                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 模型平台:  [model-factory ▼]                                         │  │
+│  │ 模型 ID:   [kechuang_score_v2    ]    版本: [latest ▼]               │  │
+│  │ 超时(ms):  [10000]                                                    │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  输入参数 (JSON Schema)                 输出结构 (JSON Schema)              │
+│  ┌────────────────────────────────┐    ┌────────────────────────────────┐  │
+│  │ {                              │    │ {                              │  │
+│  │   "type": "object",            │    │   "type": "object",            │  │
+│  │   "properties": {              │    │   "properties": {              │  │
+│  │     "credit_code": {...}       │    │     "total_score": {...}       │  │
+│  │   }                            │    │   }                            │  │
+│  │ }                              │    │ }                              │  │
+│  └────────────────────────────────┘    └────────────────────────────────┘  │
+│                                                                             │
+│  权限配置                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 可见性:  [部门 ▼]                                                    │  │
+│  │ 允许部门: [☑ 公司金融部] [☑ 科技金融部] [☐ 风控部]                  │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  测试面板                                                                   │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 输入: {"credit_code": "91320500XXXX"}                 [执行测试]     │  │
+│  │ ──────────────────────────────────────────────────────────────────── │  │
+│  │ 输出: {"total_score": 85.5, ...}                      耗时: 235ms    │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 12.8.3 Skill 可视化编排器
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  📋 Skill 编排器: enterprise_full_analysis                    [保存] [测试]│
+├─────────────────────────────────────────┬──────────────────────────────────┤
+│                                         │                                  │
+│  🔧 工具库                              │  📊 编排画布 (ReactFlow)         │
+│  ┌─────────────────────────────────┐   │                                  │
+│  │ 🔍 搜索工具...                  │   │    ┌─────────────────┐           │
+│  ├─────────────────────────────────┤   │    │    📥 输入      │           │
+│  │ 📁 数据查询                     │   │    │  company_name   │           │
+│  │   ├─ enterprise_query           │   │    └────────┬────────┘           │
+│  │   ├─ relation_graph             │   │             │                    │
+│  │   └─ customer_info              │   │             ▼                    │
+│  │ 📁 ML模型                       │   │    ┌─────────────────┐           │
+│  │   ├─ kechuang_score             │   │    │ enterprise_query│           │
+│  │   └─ credit_score               │   │    └────────┬────────┘           │
+│  └─────────────────────────────────┘   │      ┌──────┴──────┐             │
+│                                         │      ▼             ▼             │
+│  ─────────────────────────────────────  │ ┌─────────┐   ┌─────────┐       │
+│                                         │ │kechuang │   │relation │       │
+│  📝 节点配置                            │ │ _score  │   │ _graph  │       │
+│  ┌─────────────────────────────────┐   │ └────┬────┘   └────┬────┘       │
+│  │ 当前节点: kechuang_score        │   │      └──────┬──────┘            │
+│  │                                 │   │             ▼                   │
+│  │ 参数映射:                       │   │    ┌─────────────────┐          │
+│  │ credit_code = $.step1.credit..  │   │    │    📤 输出      │          │
+│  │                                 │   │    └─────────────────┘          │
+│  │ 依赖: [step1: enterprise_query] │   │                                  │
+│  └─────────────────────────────────┘   │                                  │
+│                                         │                                  │
+└─────────────────────────────────────────┴──────────────────────────────────┘
+```
+
+---
+
+### 12.9 动态组件渲染 (`DynamicComponents/`)
+
+| 组件 | 用途 | 数据源 |
+|------|------|-------|
+| `EntityCard.tsx` | 企业信息卡片 | 企业查询 API |
+| `ScoreCard.tsx` | 评分展示 (雷达图) | ML 模型评分 |
+| `DataTable.tsx` | 数据表格 (分页/排序/导出) | 批量数据 |
+| `RadarChart.tsx` | 雷达图 | 多维评分 |
+| `RelationGraph.tsx` | 关系图谱 | 关联企业 |
+| `TreeView.tsx` | 树状结构 | 股权穿透 |
+| `CandidateList.tsx` | 候选选择 | 反问模式 |
+| `MarkdownContent.tsx` | Markdown 渲染 | 报告/说明 |
+| `ActionButtons.tsx` | 操作按钮组 | 一键带入/导出 |
+
+---
+
+### 12.10 思维链组件 (`ThinkingChain/`)
+
+| 组件 | 功能 |
+|------|------|
+| `ThinkingPanel.tsx` | 思维链面板容器 |
+| `TaskProgress.tsx` | 任务进度条 |
+| `ExecutionDetail.tsx` | 执行详情列表 |
+
+---
+
+### 12.11 反问模式交互
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -461,507 +1547,52 @@ class ServiceCall(BaseModel):
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 7. 前端流式事件协议
-
-```typescript
-// SSE 事件类型
-type AgentEvent = 
-  | { type: "thinking"; data: { step: string; detail?: string } }
-  | { type: "service_call"; data: { name: string; status: "calling" | "success" | "error" } }
-  | { type: "progress"; data: { percent: number; message: string } }
-  | { type: "clarification"; data: { question: string; options: Option[] } }
-  | { type: "component"; data: { component_type: string; props: any } }
-  | { type: "batch_submitted"; data: { task_id: string; estimated_minutes: number } }
-  | { type: "done"; data: { success: boolean } }
-  | { type: "error"; data: { code: string; message: string } }
-```
+**组件**: `DynamicComponents/CandidateList.tsx`
 
 ---
 
-## 8. 外部服务 API 示例
+## 13. 实施路线图
 
-### 8.1 数仓 API 示例
+### Phase 1: 基础设施升级 (1 周)
 
-```yaml
-# 请求示例：查询科创企业候选名单
-POST /api/datawarehouse/query
-Headers:
-  Authorization: Bearer {token}
-  X-Request-ID: {uuid}
+- [ ] 创建 Tool/Skill 数据模型与迁移
+- [ ] 实现 Tool CRUD API
+- [ ] 实现 LLM Gateway + 多模型适配器
+- [ ] 验证 Native Function Calling 基础流程
 
-Request:
-  service_id: "kechuang_candidates"
-  params:
-    region: "苏州市"
-    industry: "软件和信息技术服务业"
-    min_tax_credit: "A"
-    limit: 500
+### Phase 2: 编排引擎重构 (1 周)
 
-Response:
-  success: true
-  request_id: "uuid-xxx"
-  data:
-    total: 328
-    items:
-      - enterprise_name: "苏州某某科技有限公司"
-        credit_code: "91320500XXXXXXXX"
-        region: "苏州市吴中区"
-        industry: "软件和信息技术服务业"
-        tax_credit: "A"
-        registered_capital: 5000
-        established_date: "2018-03-15"
-      - ...更多记录
-  metadata:
-    execution_time_ms: 1250
-    source: "enterprise_dw.kechuang_view"
-    data_update_time: "2026-01-12T00:00:00Z"
-```
+- [ ] 重构 `engine/graph.py` 支持 Native Function Calling
+- [ ] 实现统一 ML 模型调用接口
+- [ ] 实现工具动态加载与执行
+- [ ] 完善 SSE 事件流
 
-### 8.2 模型工厂 API 示例
+### Phase 3: 知识工程管理 (2 周)
 
-```yaml
-# 请求示例：调用科创评分模型
-POST /api/model-factory/invoke
-Headers:
-  Authorization: Bearer {token}
+- [ ] Tool 管理界面 (列表、编辑、测试)
+- [ ] Skill 可视化编排器 (ReactFlow)
+- [ ] Agent 配置界面
+- [ ] 权限控制实现
 
-Request:
-  model_id: "kechuang_score_v2"
-  version: "latest"
-  params:
-    candidates:
-      - credit_code: "91320500XXXXXXXX"
-        features:
-          patent_count: 15
-          revenue_growth: 0.25
-          rd_investment_ratio: 0.08
-      - ...更多候选
-    scoring_weights:        # 可选，使用默认权重
-      innovation: 0.3
-      growth: 0.25
-      stability: 0.25
-      cooperation: 0.2
+### Phase 4: 业务落地 (持续)
 
-Response:
-  success: true
-  model_id: "kechuang_score_v2"
-  model_version: "2.1.3"
-  data:
-    scored_items:
-      - credit_code: "91320500XXXXXXXX"
-        total_score: 85.5
-        score_breakdown:
-          innovation: 90
-          growth: 82
-          stability: 88
-          cooperation: 78
-        rank: 1
-      - ...更多结果
-  metadata:
-    execution_time_ms: 3200
-    model_inference_time_ms: 2800
-```
-
-### 8.3 批量任务 API 示例
-
-```yaml
-# 提交批量任务
-POST /api/model-factory/submit
-Request:
-  model_id: "kechuang_whitelist_batch"
-  params: {...}
-  callback_url: "https://agent-portal/api/callback"
-
-Response:
-  success: true
-  task_id: "task-uuid-xxx"
-  estimated_duration_minutes: 30
-  status: "submitted"
-
-# 轮询任务状态
-GET /api/model-factory/tasks/{task_id}
-
-Response:
-  task_id: "task-uuid-xxx"
-  status: "running" | "completed" | "failed"
-  progress: 65
-  result_url: "oss://results/task-uuid-xxx/output.json"  # 完成后
-```
+- [ ] 迁移现有 Agent 到新架构
+- [ ] 封装 3-5 个 ML 模型为 Tool
+- [ ] 对接真实数仓/模型平台
+- [ ] 性能优化与监控
 
 ---
 
-## 9. 前端组件类型
+## 13. 当前完成进度
 
-### 9.1 组件分类
-
-| 类型 | 组件名 | 适用场景 | 示例 |
-|------|-------|---------|------|
-| **文本类** | `text_message` | 普通文字回复 | "已为您找到328家企业" |
-| | `markdown_content` | 富文本、报告 | 分析报告、说明文档 |
-| **卡片类** | `entity_card` | 单个企业信息 | 企业主体识别结果 |
-| | `customer_card` | 客户信息卡片 | 客户价值评估结果 |
-| | `score_card` | 评分展示 | 科创评分、信用评分 |
-| | `summary_card` | 摘要卡片 | 任务执行摘要 |
-| **表格类** | `data_table` | 数据列表 | 白名单、候选客户列表 |
-| | `comparison_table` | 对比表格 | 多方案对比 |
-| **图表类** | `bar_chart` | 柱状图 | 部门业绩对比 |
-| | `line_chart` | 折线图 | 趋势分析 |
-| | `pie_chart` | 饼图 | 占比分析 |
-| | `radar_chart` | 雷达图 | 多维评分展示 |
-| | `sankey_chart` | 桑基图 | 资金流向 |
-| **关系类** | `relation_graph` | 关系图谱 | 企业关联关系 |
-| | `tree_view` | 树状结构 | 股权穿透 |
-| **交互类** | `candidate_list` | 候选选择 | 反问模式的选项 |
-| | `form_input` | 表单输入 | 补充参数 |
-| | `action_buttons` | 操作按钮 | 一键带入、导出Excel |
-
-### 9.2 组件渲染协议
-
-```typescript
-interface ComponentPayload {
-  component_type: string;       // 组件类型
-  title?: string;               // 标题
-  props: {
-    data: any;                  // 组件数据
-    config?: any;               // 配置项（列定义、图表配置等）
-  };
-  actions?: Array<{             // 可选操作按钮
-    type: string;               // inject_to_system | export | navigate
-    label: string;
-    params?: any;
-  }>;
-}
-
-// 示例：企业信息卡片
-{
-  component_type: "entity_card",
-  title: "识别结果",
-  props: {
-    data: {
-      name: "先进数通信息技术股份有限公司",
-      credit_code: "91110000XXXXXXXX",
-      legal_person: "张三",
-      registered_capital: "5000万",
-      status: "存续"
-    }
-  },
-  actions: [
-    { type: "inject_to_system", label: "一键带入", params: { target: "crm" } },
-    { type: "navigate", label: "查看详情", params: { url: "/entity/xxx" } }
-  ]
-}
-
-// 示例：数据表格
-{
-  component_type: "data_table",
-  title: "科创企业白名单（共328家）",
-  props: {
-    data: [...],
-    config: {
-      columns: [
-        { key: "name", title: "企业名称", width: 200 },
-        { key: "score", title: "综合评分", width: 100, sortable: true },
-        { key: "region", title: "地区", width: 120 }
-      ],
-      pagination: { pageSize: 20 },
-      exportable: true
-    }
-  },
-  actions: [
-    { type: "export", label: "导出Excel", params: { format: "xlsx" } }
-  ]
-}
-```
-
----
-
-## 10. 权限控制设计
-
-### 10.1 权限模型
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          权限控制模型                                │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  用户 ──belongs to──▶ 部门 ──has role──▶ 角色                       │
-│                          │                  │                        │
-│                          ▼                  ▼                        │
-│                     部门可见 Agent      角色可用 Agent               │
-│                          │                  │                        │
-│                          └────────┬─────────┘                        │
-│                                   ▼                                  │
-│                          用户最终可用 Agent = 交集/并集              │
-│                                                                      │
-│  Agent 属性:                                                         │
-│  ├── visibility: "public" | "department" | "role"                   │
-│  ├── allowed_departments: ["公司金融部", "风控部", ...]             │
-│  └── allowed_roles: ["analyst", "manager", "admin"]                 │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 10.2 Agent 权限配置
-
-```yaml
-agent:
-  id: "kechuang_whitelist"
-  name: "科创贷白名单建模"
-  
-  # 权限配置
-  permissions:
-    visibility: "department"          # public | department | role
-    allowed_departments:
-      - "公司金融部"
-      - "科技金融部"
-    allowed_roles:
-      - "analyst"
-      - "manager"
-    
-    # 数据权限（可选，控制能查询的数据范围）
-    data_scope:
-      type: "department"              # all | department | self
-      field: "branch_code"            # 按哪个字段过滤
-```
-
-### 10.3 权限控制建议
-
-| 方案 | 说明 | 适用场景 |
-|------|------|---------|
-| **方案A: 松耦合** | Agent 只标记"建议部门"，实际不做拦截 | 初期试点，快速上线 |
-| **方案B: 部门控制** | 按部门归属控制，同部门可见 | 中等安全要求 |
-| **方案C: 角色控制** | 按角色精细控制（分析师/经理/管理员） | 高安全要求 |
-| **方案D: 组合控制** | 部门 + 角色双重校验 | 银行级安全要求 |
-
-**建议**：初期采用**方案B（部门控制）**，快速上线验证；后期可升级为方案D。
-
-### 10.4 实现方式
-
-```python
-class AgentPermission(BaseModel):
-    visibility: Literal["public", "department", "role"]
-    allowed_departments: list[str] = []
-    allowed_roles: list[str] = []
-
-def check_agent_permission(user: User, agent: AgentDefinition) -> bool:
-    """检查用户是否有权限使用该 Agent"""
-    perm = agent.permissions
-    
-    if perm.visibility == "public":
-        return True
-    
-    if perm.visibility == "department":
-        return user.department in perm.allowed_departments
-    
-    if perm.visibility == "role":
-        return any(role in perm.allowed_roles for role in user.roles)
-    
-    return False
-```
-
----
-
-## 11. 实施路线图
-
-### Phase 1: 核心框架 (2周)
-
-- [ ] Agent 管理后端 API (CRUD)
-- [ ] Agent 管理前端界面
-- [ ] 用户端对话界面（Manus 风格）
-- [ ] LLM 编排层 (LangGraph)
-- [ ] 服务适配器框架
-
-### Phase 2: 交互能力 (2周)
-
-- [ ] SSE 流式通信
-- [ ] 思维链可视化组件
-- [ ] 动态组件渲染器（支持10+组件类型）
-- [ ] 任务流式展示
-- [ ] 反问模式
-
-### Phase 3: 业务落地 (2周)
-
-- [ ] 对接数仓 API
-- [ ] 对接模型工厂
-- [ ] 第一批业务 Agent 配置（3-5个）
-- [ ] 批量任务支持
-- [ ] 部门级权限控制
-
----
-
-## 12. 项目结构设计
-
-### 12.1 目标项目结构（精简版）
-
-```
-unified-agent-portal/
-├── README.md
-├── docker-compose.yml
-├── .env
-│
-├── backend/                           # FastAPI 后端
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                    # FastAPI 入口
-│   │   │
-│   │   ├── core/                      # 核心配置（保留）
-│   │   │   ├── config.py              # 环境配置
-│   │   │   ├── db.py                  # 数据库连接
-│   │   │   └── security.py            # 认证鉴权
-│   │   │
-│   │   ├── api/                       # API 路由
-│   │   │   ├── main.py                # 路由注册
-│   │   │   ├── deps.py                # 依赖注入
-│   │   │   └── routes/
-│   │   │       ├── auth.py            # 认证（简化自 login.py）
-│   │   │       ├── users.py           # 用户管理（保留）
-│   │   │       ├── agents.py          # 🆕 Agent 管理 CRUD
-│   │   │       ├── chat.py            # 🆕 对话 + SSE 流式
-│   │   │       └── tasks.py           # 🆕 批量任务管理
-│   │   │
-│   │   ├── models/                    # 数据模型
-│   │   │   ├── user.py                # 用户模型（保留）
-│   │   │   ├── agent.py               # 🆕 Agent 定义模型
-│   │   │   ├── conversation.py        # 🆕 对话/消息模型
-│   │   │   └── task.py                # 🆕 批量任务模型
-│   │   │
-│   │   ├── engine/                    # 🆕 LangGraph 引擎（借鉴 Manus/JoyAgent）
-│   │   │   ├── __init__.py
-│   │   │   ├── planner.py             # 规划层：意图理解、Agent 路由
-│   │   │   ├── executor.py            # 执行层：DAG 调度、服务调用
-│   │   │   ├── validator.py           # 验证层：结果校验
-│   │   │   ├── memory.py              # 记忆层：上下文管理
-│   │   │   └── graph.py               # LangGraph 图定义
-│   │   │
-│   │   ├── agents/                    # 🆕 业务 Agent 定义
-│   │   │   ├── __init__.py            # Agent 自动发现注册
-│   │   │   ├── base.py                # Agent 基类
-│   │   │   ├── registry.py            # Agent/Tool 注册表
-│   │   │   │
-│   │   │   ├── enterprise_resolver/   # Agent: 企业主体识别
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── config.yaml        # Agent 配置
-│   │   │   │   ├── prompts.py         # 提示词
-│   │   │   │   └── handler.py         # 业务逻辑
-│   │   │   │
-│   │   │   ├── kechuang_evaluator/    # Agent: 科创评价
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   └── _template/             # Agent 开发模板
-│   │   │       └── ...
-│   │   │
-│   │   ├── adapters/                  # 🆕 外部服务适配器
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py                # 适配器基类
-│   │   │   ├── data_warehouse.py      # 数仓适配器
-│   │   │   ├── model_factory.py       # 模型工厂适配器
-│   │   │   └── external_api.py        # 外部 API 适配器
-│   │   │
-│   │   └── utils/                     # 工具函数
-│   │       └── ...
-│   │
-│   ├── alembic/                       # 数据库迁移（保留）
-│   ├── tests/                         # 测试
-│   └── pyproject.toml
-│
-├── frontend/                          # React 前端
-│   ├── src/
-│   │   ├── main.tsx                   # 入口
-│   │   ├── index.css                  # 全局样式
-│   │   │
-│   │   ├── routes/                    # 页面路由
-│   │   │   ├── __root.tsx
-│   │   │   ├── _layout.tsx
-│   │   │   ├── login.tsx              # 登录（保留）
-│   │   │   └── _layout/
-│   │   │       ├── index.tsx          # 🆕 主对话界面
-│   │   │       ├── agents.tsx         # 🆕 Agent 管理
-│   │   │       ├── tasks.tsx          # 🆕 任务中心
-│   │   │       └── settings.tsx       # 设置
-│   │   │
-│   │   ├── components/
-│   │   │   ├── ui/                    # 基础 UI 组件（保留）
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   ├── Chat/                  # 🆕 对话界面组件
-│   │   │   │   ├── ChatContainer.tsx  # 对话容器
-│   │   │   │   ├── MessageList.tsx    # 消息列表
-│   │   │   │   ├── InputBox.tsx       # 输入框
-│   │   │   │   └── AgentCards.tsx     # Agent 快捷卡片
-│   │   │   │
-│   │   │   ├── ThinkingChain/         # 🆕 思维链组件
-│   │   │   │   ├── ThinkingPanel.tsx  # 思维链面板
-│   │   │   │   ├── TaskProgress.tsx   # 任务进度
-│   │   │   │   └── ExecutionDetail.tsx # 执行详情
-│   │   │   │
-│   │   │   ├── DynamicComponents/     # 🆕 动态渲染组件
-│   │   │   │   ├── ComponentRenderer.tsx  # 组件渲染器
-│   │   │   │   ├── EntityCard.tsx     # 企业卡片
-│   │   │   │   ├── DataTable.tsx      # 数据表格
-│   │   │   │   ├── ScoreCard.tsx      # 评分卡片
-│   │   │   │   ├── RelationGraph.tsx  # 关系图谱
-│   │   │   │   ├── CandidateList.tsx  # 候选选择（反问）
-│   │   │   │   └── index.ts           # 组件注册表
-│   │   │   │
-│   │   │   ├── Sidebar/               # 侧边栏（改造）
-│   │   │   │   ├── Sidebar.tsx
-│   │   │   │   ├── AgentList.tsx      # Agent 列表
-│   │   │   │   └── ConversationList.tsx # 历史对话
-│   │   │   │
-│   │   │   └── Admin/                 # 管理后台
-│   │   │       ├── AgentEditor.tsx    # 🆕 Agent 编辑器
-│   │   │       └── ...
-│   │   │
-│   │   ├── hooks/                     # 自定义 Hooks
-│   │   │   ├── useSSE.ts              # 🆕 SSE 通信
-│   │   │   ├── useAgent.ts            # 🆕 Agent 交互
-│   │   │   └── useAuth.ts             # 认证（保留）
-│   │   │
-│   │   ├── stores/                    # 🆕 状态管理
-│   │   │   ├── chatStore.ts           # 对话状态
-│   │   │   └── agentStore.ts          # Agent 状态
-│   │   │
-│   │   └── lib/                       # 工具库
-│   │       └── ...
-│   │
-│   ├── public/
-│   └── package.json
-│
-└── docs/                              # 文档
-    ├── architecture.md                # 架构说明
-    └── agent-development.md           # Agent 开发指南
-```
-
-### 12.2 模块保留/删除规划
-
-| 原模块 | 处理 | 说明 |
-|-------|------|------|
-| **后端** | | |
-| `api/routes/login.py` | ✅ 简化保留 | 改名为 `auth.py` |
-| `api/routes/users.py` | ✅ 保留 | 用户管理 |
-| `api/routes/items.py` | ❌ 删除 | 示例代码，不需要 |
-| `core/` | ✅ 保留 | 核心配置 |
-| `models.py` | ✅ 拆分改造 | 拆分为多个模型文件 |
-| `crud.py` | ⚠️ 改造 | 按模型拆分 |
-| `email-templates/` | ⚠️ 可选保留 | 暂时保留 |
-| **前端** | | |
-| `components/Admin/` | ⚠️ 改造 | 改为 Agent 管理 |
-| `components/Items/` | ❌ 删除 | 示例代码 |
-| `components/Common/` | ✅ 保留 | 通用组件 |
-| `components/ui/` | ✅ 保留 | 基础 UI |
-| `routes/_layout/` | ⚠️ 改造 | 改为对话界面 |
-
-### 12.3 借鉴的设计模式
-
-| 来源 | 借鉴点 | 体现位置 |
-|------|-------|---------|
-| **Manus** | 五层架构（规划/执行/验证/记忆/工具层） | `engine/` 目录 |
-| **Manus** | 流式任务展示 | 前端 `ThinkingChain/` |
-| **JoyAgent** | Multi-level Thinking | `planner.py` |
-| **JoyAgent** | Agent 独立目录结构 | `agents/` 目录 |
-| **OpenManus** | `@register_tool` 装饰器 | `registry.py` |
-| **LangGraph** | 状态图编排 | `graph.py` |
-
-
+| 模块 | 原规划 | 实际完成 | 新规划需补充 |
+|------|-------|---------|-------------|
+| 对话界面 | ✅ | ✅ 已完成 | - |
+| SSE 流式 | ✅ | ✅ 已完成 | 事件类型增强 |
+| engine/ 编排层 | ✅ | ✅ 基础完成 | 重构为 Native FC |
+| adapters/ | ✅ | ✅ 已完成 | 增加统一 ML 接口 |
+| Tool 管理 | - | ❌ | 🆕 新增 |
+| Skill 编排器 | - | ❌ | 🆕 新增 |
+| 多模型支持 | - | ❌ | 🆕 新增 |
+| 权限控制 | ✅ | ❌ | 实现 |
+| 思维链增强 | ✅ | ⚠️ 基础 | 细化 |

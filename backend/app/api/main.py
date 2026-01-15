@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api.routes import agents, avatar, chat, login, private, tasks, users, utils
+from app.api.routes import (
+    agents,
+    avatar,
+    chat,
+    login,
+    model_providers,
+    private,
+    tasks,
+    users,
+    utils,
+)
 from app.core.config import settings
 
 api_router = APIRouter()
@@ -12,6 +22,9 @@ api_router.include_router(utils.router)
 api_router.include_router(agents.router, prefix="/agents", tags=["agents"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+api_router.include_router(
+    model_providers.router, prefix="/model-providers", tags=["model-providers"]
+)
 
 
 if settings.ENVIRONMENT == "local":

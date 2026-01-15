@@ -17,6 +17,15 @@ from .conversation import (
 from .conversation import (
     Message as ChatMessage,
 )
+from .model_provider import (
+    PRESET_PROVIDERS,
+    ModelProvider,
+    ModelProviderCreate,
+    ModelProviderPublic,
+    ModelProvidersPublic,
+    ModelProviderTestResult,
+    ModelProviderUpdate,
+)
 from .task import Task, TaskCreate, TaskPublic, TasksPublic, TaskUpdate
 
 
@@ -170,4 +179,11 @@ __all__ = [
     "TaskUpdate",
     "TaskPublic",
     "TasksPublic",
+    "PRESET_PROVIDERS",
+    "ModelProvider",
+    "ModelProviderCreate",
+    "ModelProviderUpdate",
+    "ModelProviderPublic",
+    "ModelProvidersPublic",
+    "ModelProviderTestResult",
 ]
