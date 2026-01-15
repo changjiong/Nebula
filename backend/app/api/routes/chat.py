@@ -201,8 +201,9 @@ async def nfc_stream_generator(
     Stream NFC Agent responses with structured SSE events.
     
     Events:
-    - tool_call: Agent decides to call a tool
+    - tool_call: Agent decides to call a tool (with group and subItem info)
     - tool_result: Tool execution result
+    - thinking: Reasoning/thinking process
     - message: Partial or final text response
     - error: Error details
     - done: Stream completion
@@ -211,8 +212,79 @@ async def nfc_stream_generator(
     import asyncio
     from app.llm.stream_context import stream_context_var, StreamContext
 
+    # Helper function to determine tool group based on tool name
+    def get_tool_group(tool_name: str) -> str:
+        """Categorize tools into groups for Manus-style timeline display."""
+        search_tools = ["search", "web_search", "google_search", "bing_search", "search_web"]
+        browse_tools = ["browse", "browse_url", "read_url", "fetch_page", "scrape"]
+        file_tools = ["create_file", "edit_file", "read_file", "write_file", "delete_file"]
+        mcp_tools = ["mcp_", "supabase", "database"]
+        code_tools = ["run_code", "execute", "python", "shell", "terminal"]
+        
+        tool_lower = tool_name.lower()
+        
+        if any(t in tool_lower for t in search_tools):
+            return "搜索信息"
+        elif any(t in tool_lower for t in browse_tools):
+            return "深度访问"
+        elif any(t in tool_lower for t in file_tools):
+            return "文件操作"
+        elif any(t in tool_lower for t in mcp_tools):
+            return "MCP服务调用"
+        elif any(t in tool_lower for t in code_tools):
+            return "代码执行"
+        else:
+            return "工具调用"
+    
+    # Helper function to determine sub-item type
+    def get_sub_item_type(tool_name: str) -> str:
+        """Determine the sub-item type for frontend icon display."""
+        tool_lower = tool_name.lower()
+        
+        if any(t in tool_lower for t in ["search", "google", "bing"]):
+            return "search-result"
+        elif any(t in tool_lower for t in ["browse", "url", "fetch", "scrape", "read_url"]):
+            return "browse"
+        elif any(t in tool_lower for t in ["file", "create", "edit", "write", "read"]):
+            return "file-operation"
+        elif any(t in tool_lower for t in ["mcp", "supabase", "database"]):
+            return "mcp-call"
+        elif any(t in tool_lower for t in ["run", "execute", "python", "shell"]):
+            return "code-execution"
+        else:
+            return "api-call"
+    
+    # Helper function to get display title for tool
+    def get_tool_display_title(tool_name: str, arguments: dict) -> str:
+        """Generate a user-friendly display title for the tool call."""
+        tool_lower = tool_name.lower()
+        
+        if "search" in tool_lower:
+            query = arguments.get("query", arguments.get("q", ""))
+            return f"正在搜索 {query[:50]}..." if query else f"正在搜索..."
+        elif "browse" in tool_lower or "url" in tool_lower:
+            url = arguments.get("url", "")
+            return f"正在浏览 {url[:50]}..." if url else f"正在浏览网页..."
+        elif "file" in tool_lower:
+            path = arguments.get("path", arguments.get("filename", ""))
+            if "create" in tool_lower or "write" in tool_lower:
+                return f"正在创建文件 {path}" if path else "正在创建文件..."
+            elif "read" in tool_lower:
+                return f"正在读取文件 {path}" if path else "正在读取文件..."
+            elif "edit" in tool_lower:
+                return f"正在编辑文件 {path}" if path else "正在编辑文件..."
+            else:
+                return f"文件操作 {path}" if path else "文件操作..."
+        elif "mcp" in tool_lower or "supabase" in tool_lower:
+            return f"调用MCP服务: {tool_name}"
+        else:
+            return f"调用工具: {tool_name}"
+
     queue = asyncio.Queue()
     token = stream_context_var.set(StreamContext(queue=queue))
+    
+    # Track tool calls for grouping
+    active_tool_groups: dict[str, str] = {}  # group_name -> group_id
     
     # Task to run the graph execution
     async def run_graph():
@@ -230,97 +302,121 @@ async def nfc_stream_generator(
         except Exception as e:
             await queue.put({"type": "error", "error": e})
         finally:
-            await queue.put(None) # Signal done
+            await queue.put(None)  # Signal done
 
     # Start graph execution in background
     graph_task = asyncio.create_task(run_graph())
     
     try:
         current_think_id = None
+        accumulated_reasoning = ""  # Accumulate reasoning content
         
-        # Inject initial thinking step for better UX (Gemini style)
-        initial_think_id = f"think-init-{uuid.uuid4()}"
-        sse_data = {
-            "id": initial_think_id,
-            "title": "Thinking Process",
-            "status": "in-progress",
-            "content": ""
-        }
-        yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
-
+        # NO initial empty thinking event - wait for actual content
+        
         while True:
             # Wait for next item in queue
             item = await queue.get()
             
             if item is None:
-                # Mark initial thinking as done if it wasn't already
-                sse_data = {
-                    "id": initial_think_id,
-                    "title": "Thinking Process",
-                    "status": "completed",
-                    "content": ""
-                }
-                yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                # Complete any pending thinking step
+                if current_think_id:
+                    sse_data = {
+                        "id": current_think_id,
+                        "title": "思考过程",
+                        "status": "completed",
+                        "content": accumulated_reasoning
+                    }
+                    yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                 break
             
             if isinstance(item, dict) and item.get("type") == "error":
-                 raise item["error"]
+                raise item["error"]
             
             if isinstance(item, dict) and item.get("type") == "graph_event":
-                # Handle standard graph events (tool_call logic remains similar, but simplified)
+                # Handle standard graph events
                 event = item["payload"]
                 
                 if "think" in event:
                     data = event["think"]
-                    # If tool calls are pending (handled via graph event)
+                    # If tool calls are pending
                     if "pending_tool_calls" in data and data["pending_tool_calls"]:
                         for call in data["pending_tool_calls"]:
+                            tool_group = get_tool_group(call.name)
+                            sub_item_type = get_sub_item_type(call.name)
+                            display_title = get_tool_display_title(call.name, call.arguments)
+                            
+                            # Create or get group ID
+                            if tool_group not in active_tool_groups:
+                                active_tool_groups[tool_group] = f"group-{uuid.uuid4()}"
+                            
                             sse_data = {
                                 "id": call.id,
                                 "name": call.name,
                                 "arguments": call.arguments,
-                                "status": "calling"
+                                "status": "calling",
+                                # Manus-style enhancements
+                                "group": tool_group,
+                                "groupId": active_tool_groups[tool_group],
+                                "displayTitle": display_title,
+                                "subItemType": sub_item_type,
                             }
                             yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
-                    
-                    # We rely on token streaming for content/reasoning, but final graph state 
-                    # can be used for "done" confirmation or non-streaming fallbacks.
                 
                 if "execute_tools" in event:
                     data = event["execute_tools"]
                     if "tool_results" in data:
                         for result in data["tool_results"]:
+                            tool_name = result.get("tool_name", "")
+                            tool_group = get_tool_group(tool_name)
+                            sub_item_type = get_sub_item_type(tool_name)
+                            
+                            # Format result for display
+                            result_content = result.get("result", "")
+                            if isinstance(result_content, dict):
+                                result_content = json.dumps(result_content, ensure_ascii=False, indent=2)
+                            else:
+                                result_content = str(result_content)
+                            
                             sse_data = {
                                 "id": result["tool_call_id"],
-                                "name": result["tool_name"],
-                                "result": str(result.get("result", "")),
+                                "name": tool_name,
+                                "result": result_content,
                                 "success": result.get("success", False),
-                                "error": result.get("error")
+                                "error": result.get("error"),
+                                # Manus-style enhancements
+                                "group": tool_group,
+                                "groupId": active_tool_groups.get(tool_group, ""),
+                                "subItemType": sub_item_type,
                             }
                             yield f"data: {json.dumps({'event': 'tool_result', 'data': json.dumps(sse_data)})}\n\n"
                             
             else:
                 # It's a StreamChunk from the adapter
                 chunk = item
+                
                 # Handle Reasoning Content
                 if chunk.reasoning_content:
                     if not current_think_id:
                         current_think_id = f"think-{uuid.uuid4()}"
-                        # Initialize think step
+                        accumulated_reasoning = ""
+                        # Initialize think step with group
                         sse_data = {
                             "id": current_think_id,
-                            "title": "Deep Thinking",
+                            "title": "思考过程",
                             "status": "in-progress",
-                            "content": ""
+                            "content": "",
+                            "group": "分析与推理"
                         }
                         yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                     
-                    # Stream reasoning update
+                    # Accumulate and stream reasoning update
+                    accumulated_reasoning += chunk.reasoning_content
                     sse_data = {
                         "id": current_think_id,
-                        "title": "Deep Thinking",
+                        "title": "思考过程",
                         "status": "in-progress",
-                        "content": chunk.reasoning_content
+                        "content": chunk.reasoning_content,  # Send delta
+                        "accumulated": accumulated_reasoning  # Also send full content
                     }
                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
 
@@ -328,20 +424,22 @@ async def nfc_stream_generator(
                 if current_think_id and (chunk.content or chunk.finish_reason):
                     sse_data = {
                         "id": current_think_id,
-                        "title": "Deep Thinking",
+                        "title": "思考过程",
                         "status": "completed",
-                        "content": "" # Content update is handled incrementally, just update status
+                        "content": accumulated_reasoning,
+                        "group": "分析与推理"
                     }
                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                     current_think_id = None
+                    accumulated_reasoning = ""
 
                 # Handle Message Content
                 if chunk.content:
-                     yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': chunk.content})})}\n\n"
+                    yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': chunk.content})})}\n\n"
                 
                 # Check for finish
                 if chunk.finish_reason:
-                     pass
+                    pass
 
         yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 

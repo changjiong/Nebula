@@ -1,4 +1,4 @@
-import { ExternalLink, FileText, Search, Zap } from "lucide-react"
+import { ExternalLink, FileText, Search, Globe, Code, Database, ServerCog } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import type { StepSubItem } from "@/stores/chatStore"
@@ -9,10 +9,14 @@ interface TimelineSubItemProps {
   className?: string
 }
 
+// Manus-style icon mapping
 const typeIcons = {
   "search-result": Search,
   "file-operation": FileText,
-  "api-call": Zap,
+  "api-call": ServerCog,
+  "browse": Globe,
+  "mcp-call": Database,
+  "code-execution": Code,
   text: FileText,
 }
 
@@ -35,10 +39,10 @@ export function TimelineSubItem({
       onKeyDown={
         item.previewable
           ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                onClick?.()
-              }
+            if (e.key === "Enter" || e.key === " ") {
+              onClick?.()
             }
+          }
           : undefined
       }
       role={item.previewable ? "button" : undefined}

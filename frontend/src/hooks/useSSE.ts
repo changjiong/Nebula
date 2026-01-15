@@ -104,15 +104,17 @@ export function useSSE() {
 
             switch (eventType) {
               case "tool_call":
+                // Use backend-provided group and subItem info
                 addThinkingStep({
                   id: eventData.id,
-                  title: `调用工具: ${eventData.name}`,
+                  title: eventData.displayTitle || `调用工具: ${eventData.name}`,
                   status: "in-progress",
                   content: `参数:\n${JSON.stringify(eventData.arguments, null, 2)}`,
                   timestamp: Date.now(),
+                  group: eventData.group || "工具调用",
                   subItems: [{
                     id: `sub-${eventData.id}`,
-                    type: "api-call",
+                    type: eventData.subItemType || "api-call",
                     title: eventData.name,
                     content: JSON.stringify(eventData.arguments, null, 2),
                     previewable: true
@@ -128,9 +130,11 @@ export function useSSE() {
                     : `执行完成\n\n结果:\n${eventData.result}`,
                   subItems: [{
                     id: `sub-${eventData.id}`,
-                    type: "api-call",
+                    type: eventData.subItemType || "api-call",
                     title: eventData.name,
-                    content: `参数:\n${JSON.stringify({} /* args unavailable */, null, 2)}\n\n结果:\n${eventData.result}`,
+                    content: eventData.error
+                      ? `错误: ${eventData.error}`
+                      : eventData.result,
                     previewable: true
                   }]
                 })
@@ -138,20 +142,25 @@ export function useSSE() {
 
               case "thinking":
                 // 思考过程 (Chain of Thought)
-                // thinking event data: { id, title, status, content, timestamp }
+                // thinking event data: { id, title, status, content, accumulated, group }
                 if (eventData.status === "in-progress" && !eventData.content) {
+                  // Initial thinking step
                   addThinkingStep({
                     id: eventData.id || `think-${Date.now()}`,
-                    title: eventData.title || "Thinking...",
+                    title: eventData.title || "思考过程",
                     status: "in-progress",
                     content: "",
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    group: eventData.group || "分析与推理"
                   })
                 } else {
+                  // Update with content or status change
                   updateThinkingStep(eventData.id, {
                     status: eventData.status,
-                    content: eventData.content,
-                    title: eventData.title
+                    // Use accumulated if available for full content, otherwise use delta
+                    content: eventData.accumulated || eventData.content,
+                    title: eventData.title,
+                    group: eventData.group
                   })
                 }
                 break

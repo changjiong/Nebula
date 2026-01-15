@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronDown, Loader2, Search, Globe, FileText, Zap, Sparkles } from "lucide-react"
+import { CheckCircle2, ChevronDown, Loader2, Search, Globe, FileText, Zap, Sparkles, Code, Database, ServerCog } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import type { ThinkingStep } from "@/stores/chatStore"
@@ -20,17 +20,42 @@ interface GroupedStep {
   step?: ThinkingStep
 }
 
-// 获取子项图标
+// 获取子项图标 - Manus style
 const getSubItemIcon = (type: string, title: string) => {
-  if (type === "search-result" || title.includes("搜索")) {
+  // First check by type
+  switch (type) {
+    case "search-result":
+      return <Search className="w-3.5 h-3.5 text-muted-foreground" />
+    case "browse":
+      return <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+    case "file-operation":
+      return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+    case "mcp-call":
+      return <Database className="w-3.5 h-3.5 text-muted-foreground" />
+    case "code-execution":
+      return <Code className="w-3.5 h-3.5 text-muted-foreground" />
+    case "api-call":
+      return <ServerCog className="w-3.5 h-3.5 text-muted-foreground" />
+  }
+
+  // Fallback: check by title keywords
+  const titleLower = title.toLowerCase()
+  if (titleLower.includes("搜索") || titleLower.includes("search")) {
     return <Search className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (type === "api-call" || title.includes("浏览") || title.includes("访问")) {
+  if (titleLower.includes("浏览") || titleLower.includes("访问") || titleLower.includes("browse")) {
     return <Globe className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (type === "file-operation" || title.includes("文件") || title.includes("创建") || title.includes("编辑")) {
+  if (titleLower.includes("文件") || titleLower.includes("创建") || titleLower.includes("编辑") || titleLower.includes("file")) {
     return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
   }
+  if (titleLower.includes("mcp") || titleLower.includes("supabase") || titleLower.includes("database")) {
+    return <Database className="w-3.5 h-3.5 text-muted-foreground" />
+  }
+  if (titleLower.includes("代码") || titleLower.includes("执行") || titleLower.includes("code") || titleLower.includes("run")) {
+    return <Code className="w-3.5 h-3.5 text-muted-foreground" />
+  }
+
   return <Zap className="w-3.5 h-3.5 text-muted-foreground" />
 }
 

@@ -143,7 +143,7 @@ export function InputBox() {
     <div className="w-full relative">
       {" "}
       {/* Removed sticky positioning here, let parent handle layout */}
-      <div className="flex flex-col gap-2 rounded-2xl border bg-background p-3 shadow-md focus-within:ring-1 focus-within:ring-ring transition-all">
+      <div className="flex flex-col gap-2 rounded-2xl border bg-background p-3 shadow-md focus-within:ring-1 focus-within:ring-ring transition-all w-full max-w-5xl mx-auto">
         {/* Input Area */}
         <Textarea
           ref={textareaRef}

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 import { ContentCanvas } from "../Timeline/ContentCanvas"
 import { ThinkingMessage } from "./ThinkingMessage"
+import { Bot } from "lucide-react"
 
 export function MessageList() {
   const { messages } = useChatStore()
@@ -32,44 +33,61 @@ export function MessageList() {
   })
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6 space-y-4 md:space-y-6">
+    <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6 space-y-5 md:space-y-6">
       {messages.map((message, index) => (
         <div key={message.id}>
           {/* Show thinking steps before the last assistant message */}
           {index === lastAssistantIndex &&
             thinkingSteps.length > 0 && (
-              <div className="max-w-3xl mx-auto mb-6">
+              <div className="w-full max-w-3xl mx-auto mb-6">
                 <ThinkingMessage steps={thinkingSteps} />
               </div>
             )}
 
           {/* Message */}
-          <div
-            className={cn(
-              "flex max-w-3xl mx-auto",
-              message.role === "user" ? "justify-end" : "justify-start",
-            )}
-          >
-            <div
-              className={cn(
-                "rounded-2xl px-3 py-2 max-w-[80%]",
-                message.role === "user"
-                  ? "bg-secondary text-secondary-foreground border border-border/50"
-                  : "bg-muted",
-              )}
-            >
-              <div className="prose dark:prose-invert prose-sm max-w-none">
-                {message.role === "user" ? (
-                  <p className="m-0">{message.content}</p>
-                ) : (
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
-                )}
+          {message.role === "user" ? (
+            // User message: Right side bubble
+            <div className="flex w-full justify-end max-w-3xl mx-auto">
+              <div className="px-4 py-2.5 rounded-2xl max-w-[80%] bg-secondary text-secondary-foreground border border-border/50">
+                <p className="m-0 text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                <span className="text-[10px] opacity-60 mt-1.5 block text-right">
+                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <span className="text-[10px] opacity-70 mt-2 block">
-                {new Date(message.timestamp).toLocaleTimeString()}
-              </span>
             </div>
-          </div>
+          ) : (
+            // Assistant message: Document style with avatar
+            <div className="w-full max-w-3xl mx-auto">
+              <div className="flex items-start gap-3">
+                {/* Avatar */}
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <Bot className="w-5 h-5" />
+                </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm font-medium text-foreground">Assistant</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  {/* Markdown Body */}
+                  <div className="prose prose-neutral dark:prose-invert prose-sm max-w-none
+                    prose-p:my-2 prose-p:leading-relaxed
+                    prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold
+                    prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
+                    prose-pre:my-3 prose-pre:bg-muted prose-pre:rounded-lg
+                    prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
+                    prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground
+                    prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                  ">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 

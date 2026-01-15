@@ -28,10 +28,10 @@ export interface Conversation {
   isPinned?: boolean
 }
 
-// 子项类型：搜索结果、文件操作、API调用等
+// 子项类型：搜索结果、文件操作、API调用、浏览、MCP调用、代码执行等
 export interface StepSubItem {
   id: string
-  type: "search-result" | "file-operation" | "api-call" | "text"
+  type: "search-result" | "file-operation" | "api-call" | "text" | "browse" | "mcp-call" | "code-execution"
   title: string
   icon?: string // 图标URL或icon名称
   source?: string // 来源域名（搜索结果用）

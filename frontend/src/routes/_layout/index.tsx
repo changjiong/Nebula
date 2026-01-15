@@ -64,7 +64,7 @@ function ChatPage(): React.JSX.Element {
       <div className="flex-1 flex flex-col overflow-hidden">
         <MessageList />
       </div>
-      <div className="p-4 pt-0 mx-auto w-full max-w-3xl">
+      <div className="p-4 pt-0 mx-auto w-full">
         <InputBox />
       </div>
     </div>
