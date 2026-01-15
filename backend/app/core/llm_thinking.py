@@ -55,22 +55,33 @@ async def stream_chat_with_thinking(
     model: str | None = None,
     temperature: float = 0.7,
     enable_thinking: bool = True,
+    api_key: str | None = None,
+    api_base: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat completion with thinking chain visualization.
+    
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        model: Model name to use
+        temperature: Sampling temperature
+        enable_thinking: Whether to show thinking steps
+        api_key: API key for the provider (if None, uses env/settings)
+        api_base: API base URL for the provider (if None, uses env/settings)
     
     Yields SSE events in format:
     - thinking events: Show reasoning steps
     - message events: Show response content
     """
-    api_key = os.getenv("DEEPSEEK_API_KEY") or settings.DEEPSEEK_API_KEY
-    api_base = os.getenv("DEEPSEEK_API_BASE") or settings.DEEPSEEK_API_BASE
+    # Use provided values or fallback to environment/settings
+    effective_api_key = api_key or os.getenv("DEEPSEEK_API_KEY") or settings.DEEPSEEK_API_KEY
+    effective_api_base = api_base or os.getenv("DEEPSEEK_API_BASE") or settings.DEEPSEEK_API_BASE
     model_name = model or settings.LLM_MODEL
 
     # Check if we should use DeepSeek R1 (reasoning model)
     use_deepseek_r1 = "reasoner" in model_name.lower() or "r1" in model_name.lower()
 
-    if api_key == "changethis":
+    if effective_api_key == "changethis":
         # Demo mode with simulated thinking
         if enable_thinking:
             # Simulated thinking steps
@@ -153,9 +164,9 @@ async def stream_chat_with_thinking(
 
             async with client.stream(
                 "POST",
-                f"{api_base}/chat/completions",
+                f"{effective_api_base}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "Authorization": f"Bearer {effective_api_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,
@@ -163,6 +174,7 @@ async def stream_chat_with_thinking(
                 response.raise_for_status()
 
                 has_content = False
+                reasoning_step_id = None  # Track DeepSeek R1 reasoning step
                 async for line in response.aiter_lines():
                     if not line.strip():
                         continue
@@ -181,10 +193,13 @@ async def stream_chat_with_thinking(
                             # Check for reasoning content (DeepSeek R1)
                             reasoning = delta.get("reasoning_content", "")
                             if reasoning and enable_thinking:
+                                # Use a consistent ID for the reasoning step
+                                if reasoning_step_id is None:
+                                    reasoning_step_id = f"reason-{chunk.get('id', 'default')}"
                                 reasoning_event = {
                                     "type": "thinking",
                                     "data": {
-                                        "id": f"reason-{chunk.get('id', '')}",
+                                        "id": reasoning_step_id,
                                         "title": "AI 推理过程",
                                         "status": "in-progress",
                                         "content": reasoning,
@@ -207,6 +222,20 @@ async def stream_chat_with_thinking(
                 if enable_thinking and not use_deepseek_r1 and has_content:
                     step2_complete = ThinkingStep("api-2", "回答生成完成", "completed")
                     yield step2_complete.to_sse_event()
+
+                # Complete DeepSeek R1 reasoning step
+                if enable_thinking and use_deepseek_r1 and reasoning_step_id:
+                    reasoning_complete_event = {
+                        "type": "thinking",
+                        "data": {
+                            "id": reasoning_step_id,
+                            "title": "AI 推理过程",
+                            "status": "completed",
+                            "content": "",
+                            "timestamp": int(__import__("time").time() * 1000),
+                        }
+                    }
+                    yield f"data: {json.dumps(reasoning_complete_event)}\n\n"
 
                 yield "data: [DONE]\n\n"
 

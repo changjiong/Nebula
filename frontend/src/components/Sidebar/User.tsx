@@ -7,6 +7,7 @@ import {
   Moon,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sun,
 } from "lucide-react"
 
@@ -158,6 +159,12 @@ export function User({ user }: { user: any }) {
               <DropdownMenuItem className="cursor-pointer">
                 <ListTodo className="mr-3 h-4 w-4" />
                 Tasks
+              </DropdownMenuItem>
+            </RouterLink>
+            <RouterLink to="/model-providers" onClick={handleMenuClick}>
+              <DropdownMenuItem className="cursor-pointer">
+                <Sparkles className="mr-3 h-4 w-4" />
+                Model Providers
               </DropdownMenuItem>
             </RouterLink>
 

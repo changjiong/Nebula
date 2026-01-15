@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react"
 import ReactMarkdown from "react-markdown"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 import { ContentCanvas } from "../Timeline/ContentCanvas"
@@ -42,23 +41,10 @@ export function MessageList() {
           {/* Message */}
           <div
             className={cn(
-              "flex gap-4 max-w-3xl mx-auto",
-              message.role === "user" ? "flex-row-reverse" : "flex-row",
+              "flex max-w-3xl mx-auto",
+              message.role === "user" ? "justify-end" : "justify-start",
             )}
           >
-            <Avatar className="w-8 h-8">
-              <AvatarImage
-                src={
-                  message.role === "user"
-                    ? "/user-avatar.png"
-                    : "/agent-avatar.png"
-                }
-              />
-              <AvatarFallback>
-                {message.role === "user" ? "U" : "A"}
-              </AvatarFallback>
-            </Avatar>
-
             <div
               className={cn(
                 "rounded-2xl px-3 py-2 max-w-[80%]",

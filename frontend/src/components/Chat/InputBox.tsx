@@ -18,11 +18,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { useConversations } from "@/hooks/useConversations"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
-import { useModelProviderStore } from "@/stores/modelProviderStore"
+import { useModelProviderStore, AvailableModel } from "@/stores/modelProviderStore"
 
 // Fallback models when no providers configured
-const FALLBACK_MODELS = [
-  { id: "deepseek-chat", name: "DeepSeek Chat", provider_name: "DeepSeek" },
+const FALLBACK_MODELS: AvailableModel[] = [
+  { id: "deepseek-chat", name: "DeepSeek Chat", provider_id: "", provider_name: "DeepSeek", provider_type: "deepseek" },
 ]
 
 export function InputBox() {
@@ -32,14 +32,10 @@ export function InputBox() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Get models from provider store
-  const { providers, fetchProviders } = useModelProviderStore()
-  const enabledModels = providers
-    .filter((p) => p.is_enabled && p.models.length > 0)
-    .flatMap((p) =>
-      p.models.map((m) => ({ id: m, name: m, provider_name: p.name })),
-    )
+  const { getEnabledModels, fetchProviders } = useModelProviderStore()
+  const enabledModels = getEnabledModels()
   const models = enabledModels.length > 0 ? enabledModels : FALLBACK_MODELS
-  const [selectedModel, setSelectedModel] = useState(models[0])
+  const [selectedModel, setSelectedModel] = useState<AvailableModel>(models[0])
 
   // Fetch providers on mount
   useEffect(() => {
@@ -103,6 +99,7 @@ export function InputBox() {
           role: "user",
           content: userInput,
           model: selectedModel.id,
+          provider_id: selectedModel.provider_id || null,
         }),
       })
 

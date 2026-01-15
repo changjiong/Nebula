@@ -185,9 +185,20 @@ def send_message(
     return message
 
 
-async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
+async def ai_stream_generator(
+    input_text: str,
+    model: str | None = None,
+    api_key: str | None = None,
+    api_base: str | None = None,
+) -> AsyncGenerator[str, None]:
     """
     Stream AI responses with thinking chain visualization.
+
+    Args:
+        input_text: User's input message
+        model: Model name to use
+        api_key: API key for the provider
+        api_base: API base URL for the provider
 
     Yields SSE-formatted events:
     - thinking: Reasoning steps
@@ -209,8 +220,14 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
             },
         ]
 
-        # Stream from LLM with thinking chain
-        async for sse_event in stream_chat_with_thinking(messages, enable_thinking=True):
+        # Stream from LLM with thinking chain, passing provider config
+        async for sse_event in stream_chat_with_thinking(
+            messages,
+            model=model,
+            enable_thinking=True,
+            api_key=api_key,
+            api_base=api_base,
+        ):
             yield sse_event
 
     except Exception as e:
@@ -226,16 +243,41 @@ async def ai_stream_generator(input_text: str) -> AsyncGenerator[str, None]:
 @router.post("/stream")
 def stream_chat(
     *,
-    _session: SessionDep,
-    _message_in: MessageCreate,
-    _agent_id: uuid.UUID | None = None,
+    session: SessionDep,
+    current_user: CurrentUser,
+    message_in: MessageCreate,
+    agent_id: uuid.UUID | None = None,
 ) -> Any:
     """
-    Stream AI chat response using DeepSeek.
+    Stream AI chat response using the user's selected model provider.
+    
+    If provider_id is specified, looks up the provider's API config from the database.
+    Otherwise, falls back to environment variable configuration.
     """
-    input_text = _message_in.content
-
+    from app.models import ModelProvider
+    
+    input_text = message_in.content
+    model = message_in.model
+    api_key = None
+    api_base = None
+    
+    # If provider_id is specified, look up provider config from database
+    if message_in.provider_id:
+        try:
+            provider_uuid = uuid.UUID(message_in.provider_id)
+            provider = session.get(ModelProvider, provider_uuid)
+            if provider and provider.owner_id == current_user.id:
+                api_key = provider.api_key
+                api_base = provider.api_url
+        except ValueError:
+            pass  # Invalid UUID, use default config
+    
     return StreamingResponse(
-        ai_stream_generator(input_text),
+        ai_stream_generator(
+            input_text,
+            model=model,
+            api_key=api_key,
+            api_base=api_base,
+        ),
         media_type="text/event-stream",
     )

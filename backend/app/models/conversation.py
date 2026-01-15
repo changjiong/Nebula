@@ -53,7 +53,8 @@ class MessageBase(SQLModel):
 
 # Properties to receive on creation
 class MessageCreate(MessageBase):
-    pass
+    model: str | None = None  # Selected model name (e.g., "gpt-4o", "deepseek-chat")
+    provider_id: str | None = None  # UUID of the ModelProvider to use
 
 
 # Database model for Message

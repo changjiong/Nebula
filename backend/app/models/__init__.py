@@ -26,7 +26,27 @@ from .model_provider import (
     ModelProviderTestResult,
     ModelProviderUpdate,
 )
+from .skill import (
+    Skill,
+    SkillCreate,
+    SkillPublic,
+    SkillsPublic,
+    SkillTestRequest,
+    SkillTestResult,
+    SkillUpdate,
+    WorkflowNode,
+)
 from .task import Task, TaskCreate, TaskPublic, TasksPublic, TaskUpdate
+from .tool import (
+    Tool,
+    ToolCreate,
+    ToolForLLM,
+    ToolPublic,
+    ToolsPublic,
+    ToolTestRequest,
+    ToolTestResult,
+    ToolUpdate,
+)
 
 
 # Shared properties
@@ -70,7 +90,6 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -83,40 +102,8 @@ class UsersPublic(SQLModel):
     count: int
 
 
-# Shared properties
-class ItemBase(SQLModel):
-    title: str = Field(min_length=1, max_length=255)
-    description: str | None = Field(default=None, max_length=255)
-
-
-# Properties to receive on item creation
-class ItemCreate(ItemBase):
-    pass
-
-
-# Properties to receive on item update
-class ItemUpdate(ItemBase):
-    title: str | None = Field(default=None, min_length=1, max_length=255)  # type: ignore
-
-
-# Database model, database table inferred from class name
-class Item(ItemBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_id: uuid.UUID = Field(
-        foreign_key="user.id", nullable=False, ondelete="CASCADE"
-    )
-    owner: User | None = Relationship(back_populates="items")
-
-
-# Properties to return via API, id is always required
-class ItemPublic(ItemBase):
-    id: uuid.UUID
-    owner_id: uuid.UUID
-
-
-class ItemsPublic(SQLModel):
-    data: list[ItemPublic]
-    count: int
+# Note: Item model has been removed as part of code cleanup.
+# Legacy Item-related code should be migrated to use Tool/Skill models.
 
 
 # Generic message
@@ -141,6 +128,7 @@ class NewPassword(SQLModel):
 
 
 __all__ = [
+    # User
     "User",
     "UserBase",
     "UserCreate",
@@ -150,21 +138,18 @@ __all__ = [
     "UserPublic",
     "UsersPublic",
     "UpdatePassword",
-    "Item",
-    "ItemBase",
-    "ItemCreate",
-    "ItemUpdate",
-    "ItemPublic",
-    "ItemsPublic",
+    # Auth
     "Message",
     "Token",
     "TokenPayload",
     "NewPassword",
+    # Agent
     "Agent",
     "AgentCreate",
     "AgentUpdate",
     "AgentPublic",
     "AgentsPublic",
+    # Conversation
     "Conversation",
     "ConversationCreate",
     "ConversationPublic",
@@ -174,11 +159,13 @@ __all__ = [
     "ChatMessage",
     "MessageCreate",
     "MessagePublic",
+    # Task
     "Task",
     "TaskCreate",
     "TaskUpdate",
     "TaskPublic",
     "TasksPublic",
+    # ModelProvider
     "PRESET_PROVIDERS",
     "ModelProvider",
     "ModelProviderCreate",
@@ -186,4 +173,22 @@ __all__ = [
     "ModelProviderPublic",
     "ModelProvidersPublic",
     "ModelProviderTestResult",
+    # Tool (NEW)
+    "Tool",
+    "ToolCreate",
+    "ToolUpdate",
+    "ToolPublic",
+    "ToolsPublic",
+    "ToolTestRequest",
+    "ToolTestResult",
+    "ToolForLLM",
+    # Skill (NEW)
+    "Skill",
+    "SkillCreate",
+    "SkillUpdate",
+    "SkillPublic",
+    "SkillsPublic",
+    "SkillTestRequest",
+    "SkillTestResult",
+    "WorkflowNode",
 ]

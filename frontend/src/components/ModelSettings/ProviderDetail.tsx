@@ -1,24 +1,51 @@
 /**
  * Provider Detail Component
  * 右侧配置面板：API密钥、API地址、模型列表
+ * Enhanced with CherryStudio-inspired features:
+ * 1. API key help link
+ * 2. API format toggle (OpenAI/Anthropic)
+ * 3. Model search
+ * 4. Manage/Add buttons
+ * 5. Documentation links
  */
 
-import { useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {
     CheckCircle2,
     ChevronDown,
     ChevronRight,
     Eye,
     EyeOff,
+    ExternalLink,
     Loader2,
+    Plus,
+    Search,
     Settings2,
     Trash2,
     XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useModelProviderStore } from "@/stores/modelProviderStore"
 import useCustomToast from "@/hooks/useCustomToast"
+import { getProviderConfig, supportsAnthropicFormat } from "@/config/providerConfig"
+import { ManageModelsDialog, type ModelItem } from "./ManageModelsDialog"
+import { AddCustomModelDialog, type CustomModelData } from "./AddCustomModelDialog"
+
+type ApiMode = "openai" | "anthropic"
 
 export function ProviderDetail() {
     const { providers, selectedProviderId, updateProvider, testConnection, deleteProvider } =
@@ -36,15 +63,51 @@ export function ProviderDetail() {
     } | null>(null)
     const [isModelsExpanded, setIsModelsExpanded] = useState(true)
 
+    // Feature 2: API format mode
+    const [apiMode, setApiMode] = useState<ApiMode>("openai")
+
+    // Feature 3: Model search
+    const [showSearch, setShowSearch] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("")
+
+    // Feature 4: Dialogs
+    const [showManageDialog, setShowManageDialog] = useState(false)
+    const [showAddDialog, setShowAddDialog] = useState(false)
+    const [isRefreshingModels, setIsRefreshingModels] = useState(false)
+
     const provider = providers.find((p) => p.id === selectedProviderId)
+    const providerConfig = provider ? getProviderConfig(provider.provider_type) : undefined
+    const canToggleApiFormat = provider ? supportsAnthropicFormat(provider.provider_type) : false
 
     // Reset form when provider changes
-    const prevProviderId = useState<string | null>(null)[0]
-    if (provider && provider.id !== prevProviderId) {
-        setApiKey("")
-        setApiUrl(provider.api_url)
-        setTestResult(null)
-    }
+    useEffect(() => {
+        if (provider) {
+            setApiKey("")
+            setApiUrl(provider.api_url)
+            setApiMode("openai")
+            setTestResult(null)
+            setShowSearch(false)
+            setSearchQuery("")
+        }
+    }, [selectedProviderId, provider?.api_url])
+
+    // Convert models array to ModelItem with is_enabled flag (all enabled by default)
+    const modelItems: ModelItem[] = useMemo(() => {
+        if (!provider) return []
+        return provider.models.map((modelId) => ({
+            id: modelId,
+            name: modelId,
+            is_enabled: true, // All fetched models are enabled
+        }))
+    }, [provider?.models])
+
+    // Filtered models for display
+    const filteredModels = useMemo(() => {
+        if (!searchQuery) return provider?.models || []
+        return (provider?.models || []).filter((model) =>
+            model.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    }, [provider?.models, searchQuery])
 
     if (!provider) {
         return (
@@ -53,6 +116,15 @@ export function ProviderDetail() {
                 <p>选择一个服务商进行配置</p>
             </div>
         )
+    }
+
+    const handleApiModeChange = (mode: ApiMode) => {
+        setApiMode(mode)
+        if (mode === "anthropic" && providerConfig?.anthropicApiUrl) {
+            setApiUrl(providerConfig.anthropicApiUrl)
+        } else if (mode === "openai" && providerConfig?.apiUrl) {
+            setApiUrl(providerConfig.apiUrl)
+        }
     }
 
     const handleTest = async () => {
@@ -107,13 +179,74 @@ export function ProviderDetail() {
         }
     }
 
+    const handleToggleModel = (modelId: string) => {
+        // Toggle model in list - for now just remove/add
+        const currentModels = provider.models
+        const isEnabled = currentModels.includes(modelId)
+
+        const newModels = isEnabled
+            ? currentModels.filter((m) => m !== modelId)
+            : [...currentModels, modelId]
+
+        updateProvider(provider.id, { models: newModels })
+    }
+
+    const handleRefreshModels = async () => {
+        setIsRefreshingModels(true)
+        const result = await testConnection(provider.id)
+        setIsRefreshingModels(false)
+
+        if (result.success && result.available_models.length > 0) {
+            // Merge new models with existing, keeping enabled state
+            const existingSet = new Set(provider.models)
+            const newModels = result.available_models.filter((m) => !existingSet.has(m))
+            if (newModels.length > 0) {
+                await updateProvider(provider.id, {
+                    models: [...provider.models, ...newModels]
+                })
+                showSuccessToast(`发现 ${newModels.length} 个新模型`)
+            } else {
+                showSuccessToast("模型列表已是最新")
+            }
+        }
+    }
+
+    const handleAddCustomModel = async (model: CustomModelData) => {
+        // Add custom model to the list
+        if (!provider.models.includes(model.id)) {
+            await updateProvider(provider.id, {
+                models: [...provider.models, model.id]
+            })
+            showSuccessToast(`已添加模型: ${model.name}`)
+        } else {
+            showErrorToast("模型已存在")
+        }
+    }
+
     return (
         <div className="p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold">{provider.name}</h2>
-                    <Settings2 className="size-4 text-muted-foreground" />
+                    {/* Feature 5: Official website link */}
+                    {providerConfig?.officialUrl && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <a
+                                        href={providerConfig.officialUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-muted-foreground hover:text-foreground"
+                                    >
+                                        <ExternalLink className="size-4" />
+                                    </a>
+                                </TooltipTrigger>
+                                <TooltipContent>访问官网</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
                 </div>
 
                 {/* Enable/Disable Toggle */}
@@ -135,9 +268,9 @@ export function ProviderDetail() {
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">API 密钥</label>
-                    <button className="text-xs text-muted-foreground hover:text-foreground">
+                    <span className="text-xs text-muted-foreground">
                         多个密钥请用逗号分隔
-                    </button>
+                    </span>
                 </div>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -174,6 +307,18 @@ export function ProviderDetail() {
                     </Button>
                 </div>
 
+                {/* Feature 1: API Key Help Link */}
+                {providerConfig?.apiKeyUrl && (
+                    <a
+                        href={providerConfig.apiKeyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                        点击这里获取密钥
+                    </a>
+                )}
+
                 {/* Test Result */}
                 {testResult && (
                     <div
@@ -193,8 +338,30 @@ export function ProviderDetail() {
             {/* API URL */}
             <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">API 地址</label>
-                    <span className="text-xs text-muted-foreground">ⓘ</span>
+                    {/* Feature 2: API Format Toggle */}
+                    {canToggleApiFormat ? (
+                        <Select value={apiMode} onValueChange={(v) => handleApiModeChange(v as ApiMode)}>
+                            <SelectTrigger className="w-auto h-auto p-0 border-0 shadow-none font-medium text-sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="openai">API 地址</SelectItem>
+                                <SelectItem value="anthropic">Anthropic API 地址</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <label className="text-sm font-medium">API 地址</label>
+                    )}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>API 请求的基础 URL</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
                 <Input
                     value={apiUrl}
@@ -208,25 +375,45 @@ export function ProviderDetail() {
 
             {/* Models Section */}
             <div className="space-y-3">
-                <button
-                    onClick={() => setIsModelsExpanded(!isModelsExpanded)}
-                    className="flex items-center gap-2 text-sm font-medium"
-                >
-                    模型
-                    <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {provider.models.length}
-                    </span>
-                    {isModelsExpanded ? (
-                        <ChevronDown className="size-4" />
-                    ) : (
-                        <ChevronRight className="size-4" />
-                    )}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsModelsExpanded(!isModelsExpanded)}
+                        className="flex items-center gap-2 text-sm font-medium"
+                    >
+                        模型
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {provider.models.length}
+                        </span>
+                        {isModelsExpanded ? (
+                            <ChevronDown className="size-4" />
+                        ) : (
+                            <ChevronRight className="size-4" />
+                        )}
+                    </button>
+
+                    {/* Feature 3: Model Search Toggle */}
+                    <button
+                        onClick={() => setShowSearch(!showSearch)}
+                        className={`p-1 rounded hover:bg-muted ${showSearch ? "bg-muted" : ""}`}
+                    >
+                        <Search className="size-4 text-muted-foreground" />
+                    </button>
+                </div>
+
+                {/* Feature 3: Search Input */}
+                {showSearch && (
+                    <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="搜索模型..."
+                        className="h-8"
+                    />
+                )}
 
                 {isModelsExpanded && (
                     <div className="space-y-2 pl-4">
-                        {provider.models.length > 0 ? (
-                            provider.models.map((model) => (
+                        {filteredModels.length > 0 ? (
+                            filteredModels.slice(0, 10).map((model) => (
                                 <div
                                     key={model}
                                     className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/50"
@@ -239,20 +426,75 @@ export function ProviderDetail() {
                                 暂无模型，请先配置 API 密钥并点击检测
                             </p>
                         )}
+                        {filteredModels.length > 10 && (
+                            <p className="text-xs text-muted-foreground">
+                                还有 {filteredModels.length - 10} 个模型...
+                            </p>
+                        )}
                     </div>
                 )}
 
+                {/* Feature 5: Documentation Links */}
+                {(providerConfig?.docsUrl || providerConfig?.modelsUrl) && (
+                    <p className="text-xs text-muted-foreground pl-4">
+                        查看{" "}
+                        {providerConfig.docsUrl && (
+                            <a
+                                href={providerConfig.docsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                            >
+                                {provider.name} 文档
+                            </a>
+                        )}
+                        {providerConfig.docsUrl && providerConfig.modelsUrl && " 和 "}
+                        {providerConfig.modelsUrl && (
+                            <a
+                                href={providerConfig.modelsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                            >
+                                模型
+                            </a>
+                        )}
+                        {" "}获取更多详情
+                    </p>
+                )}
+
+                {/* Feature 4: Manage and Add Buttons */}
                 <div className="flex gap-2 pl-4">
                     <Button
                         variant="default"
                         size="sm"
-                        onClick={handleSave}
-                        disabled={isSaving || (!apiKey && apiUrl === provider.api_url)}
+                        onClick={() => setShowManageDialog(true)}
                     >
-                        {isSaving ? <Loader2 className="size-4 mr-1 animate-spin" /> : null}
-                        保存配置
+                        <Settings2 className="size-4 mr-1" />
+                        管理
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddDialog(true)}
+                    >
+                        <Plus className="size-4 mr-1" />
+                        添加
                     </Button>
                 </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="pt-2">
+                <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={isSaving || (!apiKey && apiUrl === provider.api_url)}
+                >
+                    {isSaving ? <Loader2 className="size-4 mr-1 animate-spin" /> : null}
+                    保存配置
+                </Button>
             </div>
 
             {/* Danger Zone */}
@@ -267,6 +509,24 @@ export function ProviderDetail() {
                     删除此服务商
                 </Button>
             </div>
+
+            {/* Feature 4: Manage Models Dialog */}
+            <ManageModelsDialog
+                open={showManageDialog}
+                onOpenChange={setShowManageDialog}
+                providerName={provider.name}
+                models={modelItems}
+                onToggleModel={handleToggleModel}
+                onRefresh={handleRefreshModels}
+                isRefreshing={isRefreshingModels}
+            />
+
+            {/* Feature 4: Add Custom Model Dialog */}
+            <AddCustomModelDialog
+                open={showAddDialog}
+                onOpenChange={setShowAddDialog}
+                onAdd={handleAddCustomModel}
+            />
         </div>
     )
 }
