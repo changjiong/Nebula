@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { useConversations } from "@/hooks/useConversations"
+import { useSSE } from "@/hooks/useSSE"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 import { useModelProviderStore, AvailableModel } from "@/stores/modelProviderStore"
@@ -50,6 +51,13 @@ export function InputBox() {
   }, [models, selectedModel])
 
 
+  const { streamMessage, isStreaming, abort } = useSSE()
+
+  // Update store connecting state based on local hook state
+  useEffect(() => {
+    setIsConnecting(isStreaming)
+  }, [isStreaming, setIsConnecting])
+
   const handleSubmit = async (): Promise<void> => {
     if (!input.trim() || isConnecting) return
 
@@ -60,8 +68,6 @@ export function InputBox() {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
     }
-
-    setIsConnecting(true)
 
     try {
       // Ensure we have a conversation (create one if needed)
@@ -87,117 +93,19 @@ export function InputBox() {
       }
       addMessage(userMessage)
 
-      // Call the backend streaming endpoint
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
-      const response = await fetch(`${apiUrl}/api/v1/chat/stream`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
-        body: JSON.stringify({
-          role: "user",
-          content: userInput,
-          model: selectedModel.id,
-          provider_id: selectedModel.provider_id || null,
-        }),
+      // Call the streaming hook
+      const result = await streamMessage({
+        content: userInput,
+        model: selectedModel.id,
+        provider_id: selectedModel.provider_id,
+        conversation_id: conversationId,
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      // Save assistant message to server after stream completes
+      if (conversationId && result?.content) {
+        await sendMessage(conversationId, "assistant", result.content)
       }
 
-      // Handle SSE response
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let assistantMessage = ""
-
-      if (reader) {
-        // Create initial empty assistant message
-        const assistantMessageId = (Date.now() + 1).toString()
-        addMessage({
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-          timestamp: Date.now(),
-        })
-
-        let buffer = ""
-        const {
-          updateMessageTransient,
-          addThinkingStep,
-          syncMessageToConversation,
-        } = useChatStore.getState()
-
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            // Stream finished, sync and save to server
-            syncMessageToConversation(assistantMessageId)
-            // Save assistant message to server
-            if (conversationId && assistantMessage) {
-              await sendMessage(conversationId, "assistant", assistantMessage)
-            }
-            break
-          }
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n")
-
-          // Keep the last incomplete line in buffer
-          buffer = lines.pop() || ""
-
-          for (const line of lines) {
-            if (!line.trim()) continue
-
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6).trim()
-              if (data === "[DONE]") {
-                syncMessageToConversation(assistantMessageId)
-                // Save assistant message to server
-                if (conversationId && assistantMessage) {
-                  await sendMessage(conversationId, "assistant", assistantMessage)
-                }
-                break
-              }
-
-              try {
-                // Try to parse as JSON event
-                const event = JSON.parse(data)
-
-                if (event.type === "thinking") {
-                  // Add or update thinking step
-                  const step = event.data
-                  addThinkingStep({
-                    id: step.id,
-                    title: step.title,
-                    status: step.status,
-                    content: step.content || "",
-                    timestamp: step.timestamp,
-                  })
-                } else if (event.type === "message") {
-                  // Accumulate message content
-                  assistantMessage += event.data.content
-                  // Use transient update to avoid expensive persist on every chunk
-                  updateMessageTransient(assistantMessageId, assistantMessage)
-                } else if (event.type === "error") {
-                  // Handle error
-                  console.error("Stream error:", event.data)
-                  assistantMessage += `\n[错误: ${event.data.message}]`
-                  updateMessageTransient(assistantMessageId, assistantMessage)
-                }
-              } catch (_e) {
-                // Fallback: treat as plain text (backward compatibility)
-                assistantMessage += data
-                updateMessageTransient(assistantMessageId, assistantMessage)
-              }
-            }
-          }
-        }
-        // Ensure sync happens if loop exits for other reasons
-        syncMessageToConversation(assistantMessageId)
-      }
     } catch (error) {
       console.error("Failed to send message:", error)
       addMessage({
@@ -206,14 +114,11 @@ export function InputBox() {
         content: "Sorry, I encountered an error. Please try again.",
         timestamp: Date.now(),
       })
-    } finally {
-      setIsConnecting(false)
     }
   }
 
   const handleStop = () => {
-    // Placeholder for abort logic (needs AbortController impl)
-    setIsConnecting(false)
+    abort()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

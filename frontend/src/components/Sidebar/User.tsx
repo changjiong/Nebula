@@ -9,6 +9,8 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  Wrench,
+  Database,
 } from "lucide-react"
 
 import { useTheme } from "@/components/theme-provider"
@@ -168,14 +170,27 @@ export function User({ user }: { user: any }) {
               </DropdownMenuItem>
             </RouterLink>
 
-            {/* Admin Link */}
             {user?.is_superuser && (
-              <RouterLink to="/admin" onClick={handleMenuClick}>
-                <DropdownMenuItem className="cursor-pointer">
-                  <ShieldCheck className="mr-3 h-4 w-4" />
-                  Admin
-                </DropdownMenuItem>
-              </RouterLink>
+              <>
+                <RouterLink to="/admin" onClick={handleMenuClick}>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <ShieldCheck className="mr-3 h-4 w-4" />
+                    {"Admin"}
+                  </DropdownMenuItem>
+                </RouterLink>
+                <RouterLink to="/admin/tools" onClick={handleMenuClick}>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Wrench className="mr-3 h-4 w-4" />
+                    Tools
+                  </DropdownMenuItem>
+                </RouterLink>
+                <RouterLink to="/admin/skills" onClick={handleMenuClick}>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Database className="mr-3 h-4 w-4" />
+                    Skills
+                  </DropdownMenuItem>
+                </RouterLink>
+              </>
             )}
 
             <DropdownMenuSeparator />

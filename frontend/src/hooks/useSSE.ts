@@ -1,170 +1,197 @@
-import { useEffect, useRef } from "react"
+import { useRef, useState, useCallback } from "react"
 import { useChatStore } from "@/stores/chatStore"
 
+export function useSSE() {
+  const [isStreaming, setIsStreaming] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-export function useSSE(url: string | null) {
-  const eventSource = useRef<EventSource | null>(null)
-  const { addMessage, updateThinkingStep, setIsConnecting, addThinkingStep } =
-    useChatStore()
+  const {
+    addMessage,
+    updateMessageTransient,
+    addThinkingStep,
+    updateThinkingStep,
+    syncMessageToConversation,
+    setIsConnecting
+  } = useChatStore()
 
-  useEffect(() => {
-    if (!url) {
-      if (eventSource.current) {
-        eventSource.current.close()
-        eventSource.current = null
+  const streamMessage = useCallback(async (
+    payload: {
+      content: string;
+      model: string;
+      provider_id?: string | null;
+      conversation_id: string
+    }
+  ) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+    setIsStreaming(true)
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000"
+
+      const response = await fetch(`${apiUrl}/api/v1/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({
+          role: "user",
+          content: payload.content,
+          model: payload.model,
+          provider_id: payload.provider_id || null,
+        }),
+        signal: abortController.signal
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
-      return
-    }
 
-    setIsConnecting(true)
-    eventSource.current = new EventSource(url)
+      if (!response.body) return
 
-    eventSource.current.onopen = () => {
-      console.log("SSE Connected")
-      setIsConnecting(false)
-    }
+      // Create initial assistant message placeholder
+      const assistantMessageId = (Date.now() + 1).toString()
+      addMessage({
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: Date.now(),
+      })
 
-    eventSource.current.onerror = (err) => {
-      console.error("SSE Error:", err)
-      setIsConnecting(false)
-      eventSource.current?.close()
-    }
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantMessage = ""
 
-    // Default message handler for all events (since backend sends everything as data: {...})
-    eventSource.current.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data)
-        const eventType = payload.event || payload.type // Support both keys
-        const eventData = typeof payload.data === 'string' ? JSON.parse(payload.data) : payload.data
+      let buffer = ""
 
-        if (!eventType) return
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-        switch (eventType) {
-          case "tool_call":
-            addThinkingStep({
-              id: eventData.id,
-              title: `调用工具: ${eventData.name}`,
-              status: "in-progress",
-              content: `参数:\n${JSON.stringify(eventData.arguments, null, 2)}`,
-              timestamp: Date.now(),
-              // Use api-call icon type
-              subItems: [{
-                id: `sub-${eventData.id}`,
-                type: "api-call",
-                title: eventData.name,
-                content: JSON.stringify(eventData.arguments, null, 2),
-                previewable: true
-              }]
-            })
-            break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
 
-          case "tool_result":
-            updateThinkingStep(eventData.id, {
-              status: eventData.success ? "completed" : "failed",
-              content: eventData.error
-                ? `执行失败: ${eventData.error}`
-                : `执行完成`,
-              // Update subitem with result
-              subItems: [{
-                id: `sub-${eventData.id}`,
-                type: "api-call",
-                title: eventData.name,
-                content: `参数:\n${JSON.stringify({} /* args unavailable here directly unless mapped */, null, 2)}\n\n结果:\n${eventData.result}`,
-                previewable: true
-              }]
-            })
-            // Append result to content if needed, or just status update
-            break
+        for (const line of lines) {
+          if (!line.trim()) continue
+          if (!line.startsWith("data: ")) continue
 
-          case "thinking":
-            // Legacy thinking event (or R1 reasoning)
-            if (eventData.status === "in-progress" && !eventData.content) {
-              // Initial step creation
-              addThinkingStep({
-                id: eventData.id,
-                title: eventData.title,
-                status: "in-progress",
-                content: "",
-                timestamp: Date.now()
-              })
-            } else {
-              // Update
-              updateThinkingStep(eventData.id, {
-                status: eventData.status,
-                content: eventData.content,
-                title: eventData.title
-              })
-            }
-            break
+          const data = line.slice(6).trim()
+          if (data === "[DONE]") break
 
-          case "message":
-            // Standard chat message content
-            if (eventData.content) {
-              // Add or append message? 
-              // Currently addMessage adds a NEW message. 
-              // If streaming chunks, we might need a way to append to the LAST message.
-              // But our implementation currently yields "partial" messages?
-              // Wait, `llm_thinking.py` yields separate chunks. `chat.py` with NFC yields chunks.
-              // useChatStore has `updateMessageTransient` but requires message ID.
-              // The backend doesn't send message ID in the chunk for NFC generator, only content.
-              // So we need to handle "accumulating" the assistant message.
+          try {
+            const payload = JSON.parse(data)
+            // Backend sends { event: "...", data: "..." }
+            // Where data might be a JSON string or object
+            const eventType = payload.event || payload.type
 
-              // For now, let's assume `addMessage` handles accumulation if we pass same ID? 
-              // No, addMessage appends to array.
-
-              // We need logic here to create a message ONCE, then update it.
-              // Since we don't have a stable message ID from backend for the final answer yet,
-              // we can generate one on client side when stream starts? 
-              // Or simple workaround: If last message is assistant, update it.
-
-              // Implementation detail: NFC generator in `chat.py` sends `final_response` chunks.
-              // It's text content.
-              // We should check if we already have an assistant message at the end.
-              const { messages, updateMessage, addMessage: storeAddMessage } = useChatStore.getState()
-              const lastMsg = messages[messages.length - 1]
-
-              if (lastMsg && lastMsg.role === "assistant" && !lastMsg.agentId /* assuming agentId marks something else? */) {
-                // Append to last message
-                updateMessage(lastMsg.id, lastMsg.content + eventData.content)
-              } else {
-                // New message
-                storeAddMessage({
-                  id: Date.now().toString(),
-                  role: "assistant",
-                  content: eventData.content,
-                  timestamp: Date.now()
-                })
+            // Parse nested data if string
+            let eventData = payload.data
+            if (typeof eventData === 'string') {
+              try {
+                eventData = JSON.parse(eventData)
+              } catch {
+                // Keep as string if not JSON
               }
             }
-            break
 
-          case "error":
-            console.error("Stream error:", eventData)
-            addThinkingStep({
-              id: `error-${Date.now()}`,
-              title: "系统错误",
-              status: "failed",
-              content: eventData.message,
-              timestamp: Date.now()
-            })
-            break
+            if (!eventType) continue
 
-          case "done":
-            // Stream finished
-            eventSource.current?.close()
-            setIsConnecting(false)
-            break
+            switch (eventType) {
+              case "tool_call":
+                addThinkingStep({
+                  id: eventData.id,
+                  title: `调用工具: ${eventData.name}`,
+                  status: "in-progress",
+                  content: `参数:\n${JSON.stringify(eventData.arguments, null, 2)}`,
+                  timestamp: Date.now(),
+                  subItems: [{
+                    id: `sub-${eventData.id}`,
+                    type: "api-call",
+                    title: eventData.name,
+                    content: JSON.stringify(eventData.arguments, null, 2),
+                    previewable: true
+                  }]
+                })
+                break
+
+              case "tool_result":
+                updateThinkingStep(eventData.id, {
+                  status: eventData.success ? "completed" : "failed",
+                  content: eventData.error
+                    ? `执行失败: ${eventData.error}`
+                    : `执行完成\n\n结果:\n${eventData.result}`,
+                  subItems: [{
+                    id: `sub-${eventData.id}`,
+                    type: "api-call",
+                    title: eventData.name,
+                    content: `参数:\n${JSON.stringify({} /* args unavailable */, null, 2)}\n\n结果:\n${eventData.result}`,
+                    previewable: true
+                  }]
+                })
+                break
+
+              case "message":
+                if (eventData.content) {
+                  assistantMessage += eventData.content
+                  updateMessageTransient(assistantMessageId, assistantMessage)
+                }
+                break
+
+              case "error":
+                console.error("Stream error event:", eventData)
+                assistantMessage += `\n[系统错误: ${eventData.message || '未知错误'}]`
+                updateMessageTransient(assistantMessageId, assistantMessage)
+                break
+            }
+          } catch (e) {
+            console.error("Failed to parse chunk:", e)
+          }
         }
-
-      } catch (e) {
-        console.error("Failed to parse SSE message:", e)
       }
-    }
 
-    return () => {
-      eventSource.current?.close()
-      eventSource.current = null
+      // Final sync to server
+      // Note: We need to update the conversation on server
+      // Ideally use a hook or service. existing InputBox logic used sendMessage provided by useConversations
+      // Here we rely on store sync, but we might need to explicitly call API to save assistant msg if backend doesn't save stream.
+      // *Backend chat/stream endpoint usually doesn't save the assistant response automatically unless configured.*
+      // Actually `chat.py` nfc_stream_generator doesn't seem to save the final message to DB?
+      // Wait, `chat.py` creates the USER message. But assistant message?
+      // Checking `chat.py`: it yields chunks. It doesn't seem to persist the final assistant response.
+      // So client MUST save it.
+
+      // We need to saving logic here.
+      // We can't use useConversations hook inside this callback easily if it's not passed in.
+      // But we can accept a callback or use the store if it had an action.
+      // For now, let's just sync to local store ID. Caller (InputBox) is responsible for server save?
+      // Or we move server save logic here.
+      // Let's defer server save to the caller or add it to args.
+
+      syncMessageToConversation(assistantMessageId)
+      return { assistantMessageId, content: assistantMessage }
+
+    } catch (error) {
+      console.error("Stream request failed:", error)
+      throw error
+    } finally {
       setIsConnecting(false)
+      setIsStreaming(false)
+      abortControllerRef.current = null
     }
-  }, [url, addMessage, updateThinkingStep, setIsConnecting, addThinkingStep])
+  }, [addMessage, updateMessageTransient, addThinkingStep, updateThinkingStep, syncMessageToConversation])
+
+  const abort = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      setIsStreaming(false)
+    }
+  }, [])
+
+  return { streamMessage, isStreaming, abort }
 }

@@ -181,8 +181,7 @@ def send_message(
     if conversation.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    message = ChatMessage.model_validate(message_in)
-    message.conversation_id = conversation_id
+    message = ChatMessage(conversation_id=conversation_id, **message_in.model_dump())
     session.add(message)
     session.commit()
     session.refresh(message)

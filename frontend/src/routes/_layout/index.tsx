@@ -4,7 +4,6 @@ import * as React from "react"
 import { AgentCards } from "@/components/Chat/AgentCards"
 import { InputBox } from "@/components/Chat/InputBox"
 import { MessageList } from "@/components/Chat/MessageList"
-import { useSSE } from "@/hooks/useSSE"
 import { useChatStore } from "@/stores/chatStore"
 
 export const Route = createFileRoute("/_layout/")({
@@ -23,8 +22,7 @@ export const Route = createFileRoute("/_layout/")({
 function ChatPage(): React.JSX.Element {
   const { messages } = useChatStore()
 
-  // Initialize SSE connection (currently disabled with null for dev/mock)
-  useSSE(null)
+
 
   // Expose mock data injection for testing
   React.useEffect(() => {
