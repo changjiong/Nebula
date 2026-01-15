@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_layout/")({
   head: () => ({
     meta: [
       {
-        title: "对公业务智能助手 - Agent Portal",
+        title: "业务智能执行助手 - Talos",
       },
     ],
   }),

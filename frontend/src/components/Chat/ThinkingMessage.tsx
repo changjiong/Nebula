@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronDown, ChevronUp, Loader2, Search, Globe, FileText, Zap } from "lucide-react"
+import { CheckCircle2, ChevronDown, Loader2, Search, Globe, FileText, Zap, Sparkles } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import type { ThinkingStep } from "@/stores/chatStore"
@@ -32,6 +32,26 @@ const getSubItemIcon = (type: string, title: string) => {
     return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
   }
   return <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+}
+
+// Gemini风格的动态思考图标
+function ThinkingIcon({ isAnimating }: { isAnimating: boolean }) {
+  return (
+    <div className={cn(
+      "relative w-5 h-5 flex items-center justify-center",
+      isAnimating && "animate-pulse"
+    )}>
+      <Sparkles className={cn(
+        "w-5 h-5",
+        isAnimating ? "text-blue-400" : "text-muted-foreground"
+      )} />
+      {isAnimating && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-3 h-3 rounded-full bg-blue-400/30 animate-ping" />
+        </div>
+      )}
+    </div>
+  )
 }
 
 // 单个分组任务卡片
@@ -244,6 +264,12 @@ function StandaloneStep({ step }: { step: ThinkingStep }) {
 export function ThinkingMessage({
   steps,
 }: ThinkingMessageProps) {
+  // 整体折叠状态
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // 判断是否有任务正在进行
+  const isThinking = steps.some((s) => s.status === "in-progress")
+
   // 按分组组织步骤
   const groupedSteps = useMemo(() => {
     const groups: GroupedStep[] = []
@@ -283,26 +309,49 @@ export function ThinkingMessage({
   if (steps.length === 0) return null
 
   return (
-    <div className="my-4 space-y-4">
-      {groupedSteps.map((group) => {
-        if (group.type === "group") {
-          const allCompleted = group.steps!.every((s) => s.status === "completed")
-          const anyInProgress = group.steps!.some((s) => s.status === "in-progress")
+    <div className="my-4">
+      {/* Gemini风格的 "Show thinking" 整体折叠按钮 */}
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="flex items-center gap-2 mb-3 group"
+      >
+        <ThinkingIcon isAnimating={isThinking} />
+        <span className="text-sm font-medium text-foreground">
+          {isThinking ? "Thinking..." : "Show thinking"}
+        </span>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform",
+            !isCollapsed && "rotate-180"
+          )}
+        />
+      </button>
 
-          return (
-            <TaskGroup
-              key={group.id}
-              title={group.title!}
-              description={group.description}
-              steps={group.steps!}
-              isCompleted={allCompleted}
-              isInProgress={anyInProgress}
-            />
-          )
-        }
+      {/* 折叠内容 */}
+      {!isCollapsed && (
+        <div className="space-y-4 pl-7 border-l-2 border-muted ml-2.5">
+          {groupedSteps.map((group) => {
+            if (group.type === "group") {
+              const allCompleted = group.steps!.every((s) => s.status === "completed")
+              const anyInProgress = group.steps!.some((s) => s.status === "in-progress")
 
-        return <StandaloneStep key={group.id} step={group.step!} />
-      })}
+              return (
+                <TaskGroup
+                  key={group.id}
+                  title={group.title!}
+                  description={group.description}
+                  steps={group.steps!}
+                  isCompleted={allCompleted}
+                  isInProgress={anyInProgress}
+                />
+              )
+            }
+
+            return <StandaloneStep key={group.id} step={group.step!} />
+          })}
+        </div>
+      )}
     </div>
   )
 }

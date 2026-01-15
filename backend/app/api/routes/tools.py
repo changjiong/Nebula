@@ -23,6 +23,7 @@ from app.models import (
     ToolTestResult,
     ToolUpdate,
 )
+from app.core.permissions import check_tool_permission, filter_tools_by_permission
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -60,18 +61,16 @@ async def list_tools(
             col(Tool.name).icontains(search) | col(Tool.description).icontains(search)
         )
     
-    # TODO: Apply permission filtering based on user's department/roles
-    # For now, return all tools (permission check to be implemented later)
+    # Apply permission filtering based on user's department/roles
+    all_tools = session.exec(query).all()
+    accessible_tools = filter_tools_by_permission(current_user, all_tools)
     
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    count = session.exec(count_query).one()
+    # Manual pagination after permission filter (inefficient but safe)
+    # Ideally should move permission logic to SQL query
+    total = len(accessible_tools)
+    paginated = accessible_tools[skip : skip + limit]
     
-    # Apply pagination
-    query = query.offset(skip).limit(limit).order_by(Tool.created_at.desc())
-    tools = session.exec(query).all()
-    
-    return ToolsPublic(data=tools, count=count)
+    return ToolsPublic(data=paginated, count=total)
 
 
 # ============ Get Single ============
@@ -87,7 +86,8 @@ async def get_tool(
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
     
-    # TODO: Check permission
+    if not check_tool_permission(current_user, tool):
+        raise HTTPException(status_code=403, detail="Not authorized to access this tool")
     
     return tool
 
@@ -102,6 +102,9 @@ async def get_tool_by_name(
     tool = session.exec(select(Tool).where(Tool.name == name)).first()
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
+    
+    if not check_tool_permission(current_user, tool):
+        raise HTTPException(status_code=403, detail="Not authorized to access this tool")
     
     return tool
 
@@ -149,6 +152,10 @@ async def update_tool(
     tool = session.get(Tool, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
+        
+    # Only creator or superuser can edit
+    if not current_user.is_superuser and tool.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this tool")
     
     # Check for name conflict if name is being updated
     if tool_in.name and tool_in.name != tool.name:
@@ -181,6 +188,10 @@ async def delete_tool(
     tool = session.get(Tool, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
+        
+    # Only creator or superuser can delete
+    if not current_user.is_superuser and tool.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this tool")
     
     session.delete(tool)
     session.commit()
@@ -205,6 +216,9 @@ async def test_tool(
     tool = session.get(Tool, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
+
+    if not check_tool_permission(current_user, tool):
+        raise HTTPException(status_code=403, detail="Not authorized to access this tool")
     
     import time
     start_time = time.time()

@@ -12,12 +12,16 @@ from app.models import (
     Conversation,
     ConversationCreate,
     ConversationPublic,
-    ConversationsPublic,
     ConversationUpdate,
     ConversationWithMessages,
+    ConversationsPublic,
     MessageCreate,
     MessagePublic,
+    Tool,
 )
+from app.core.permissions import filter_tools_by_permission
+from app.engine.nfc_graph import stream_nfc_agent
+from app.llm.base import ToolDefinition
 
 router = APIRouter()
 
@@ -185,59 +189,88 @@ def send_message(
     return message
 
 
-async def ai_stream_generator(
+async def nfc_stream_generator(
     input_text: str,
-    model: str | None = None,
-    api_key: str | None = None,
-    api_base: str | None = None,
+    user_id: uuid.UUID,
+    session_id: str = "default",
+    model: str = "deepseek-chat",
+    db_session: Any = None,
+    tools: list[ToolDefinition] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
-    Stream AI responses with thinking chain visualization.
-
-    Args:
-        input_text: User's input message
-        model: Model name to use
-        api_key: API key for the provider
-        api_base: API base URL for the provider
-
-    Yields SSE-formatted events:
-    - thinking: Reasoning steps
-    - message: Response content
-    - error: Error messages
+    Stream NFC Agent responses with structured SSE events.
+    
+    Events:
+    - tool_call: Agent decides to call a tool
+    - tool_result: Tool execution result
+    - message: Partial or final text response
+    - error: Error details
+    - done: Stream completion
     """
+    import json
+    
     try:
-        from app.core.llm_thinking import stream_chat_with_thinking
-
-        # Prepare messages for LLM
-        messages = [
-            {
-                "role": "system",
-                "content": "你是一个有帮助的AI助手。请清晰简洁地回答问题。",
-            },
-            {
-                "role": "user",
-                "content": input_text,
-            },
-        ]
-
-        # Stream from LLM with thinking chain, passing provider config
-        async for sse_event in stream_chat_with_thinking(
-            messages,
+        # Stream events from the agent graph
+        async for event in stream_nfc_agent(
+            input_text=input_text,
+            session_id=session_id,
+            user_id=str(user_id),
             model=model,
-            enable_thinking=True,
-            api_key=api_key,
-            api_base=api_base,
+            tools=tools,
+            session=db_session,
         ):
-            yield sse_event
+            # Handle "think" node events (Tool Calls)
+            if "think" in event:
+                data = event["think"]
+                # If tool calls are pending
+                if "pending_tool_calls" in data and data["pending_tool_calls"]:
+                    for call in data["pending_tool_calls"]:
+                        # Emit tool_call event
+                        sse_data = {
+                            "id": call.id,
+                            "name": call.name,
+                            "arguments": call.arguments,
+                            "status": "calling"
+                        }
+                        yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
+                
+                # If final response is ready (or partial)
+                if "final_response" in data and data["final_response"]:
+                    # Depending on how the graph returns it, might be full text
+                    # For streaming text, we might need granular LLM streaming support
+                    # For now, yield the chunk
+                    yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': data['final_response']})})}\n\n"
+
+            # Handle "execute_tools" node events (Tool Results)
+            if "execute_tools" in event:
+                data = event["execute_tools"]
+                if "tool_results" in data:
+                    for result in data["tool_results"]:
+                        sse_data = {
+                            "id": result["tool_call_id"],
+                            "name": result["tool_name"],
+                            "result": str(result.get("result", "")),
+                            "success": result.get("success", False),
+                            "error": result.get("error")
+                        }
+                        yield f"data: {json.dumps({'event': 'tool_result', 'data': json.dumps(sse_data)})}\n\n"
+
+            # Handle "respond" node (Done)
+            if "respond" in event:
+                # Completion
+                pass
+
+        yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 
     except Exception as e:
-        import json
+        import traceback
+        traceback.print_exc()
         error_event = {
             "type": "error",
             "data": {"code": "stream_error", "message": str(e)}
         }
         yield f"data: {json.dumps(error_event)}\n\n"
-        yield "data: [DONE]\n\n"
+        yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 
 
 @router.post("/stream")
@@ -257,27 +290,35 @@ def stream_chat(
     from app.models import ModelProvider
     
     input_text = message_in.content
-    model = message_in.model
-    api_key = None
-    api_base = None
+    model = message_in.model or "deepseek-chat"
     
-    # If provider_id is specified, look up provider config from database
-    if message_in.provider_id:
-        try:
-            provider_uuid = uuid.UUID(message_in.provider_id)
-            provider = session.get(ModelProvider, provider_uuid)
-            if provider and provider.owner_id == current_user.id:
-                api_key = provider.api_key
-                api_base = provider.api_url
-        except ValueError:
-            pass  # Invalid UUID, use default config
+    # 1. Permission Control: Fetch valid tools for current user
+    all_tools = session.exec(select(Tool).where(Tool.status == "active")).all()
+    accessible_tools = filter_tools_by_permission(current_user, all_tools)
     
+    # Convert to ToolDefinition for LLM
+    tool_definitions = []
+    for t in accessible_tools:
+        # Convert schema string to dict if needed, assuming input_schema is dict
+        tool_definitions.append(ToolDefinition(
+            name=t.name,
+            description=t.description,
+            parameters=t.input_schema
+        ))
+
+    # 2. Check Provider (Optional override)
+    # The LLMGateway manages providers, but we can hint preference or API key override if needed
+    # For now, we rely on Gateway's configuration management
+    
+    # 3. Stream Response
     return StreamingResponse(
-        ai_stream_generator(
-            input_text,
+        nfc_stream_generator(
+            input_text=input_text,
+            user_id=current_user.id,
+            session_id=str(agent_id) if agent_id else "default",
             model=model,
-            api_key=api_key,
-            api_base=api_base,
+            db_session=session,
+            tools=tool_definitions,
         ),
         media_type="text/event-stream",
     )

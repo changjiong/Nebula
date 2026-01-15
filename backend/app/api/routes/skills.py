@@ -21,6 +21,7 @@ from app.models import (
     SkillTestResult,
     SkillUpdate,
 )
+from app.core.permissions import check_skill_permission, filter_skills_by_permission
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 
@@ -49,15 +50,15 @@ async def list_skills(
             col(Skill.name).icontains(search) | col(Skill.description).icontains(search)
         )
     
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    count = session.exec(count_query).one()
+    # Apply permission filtering based on user's department/roles
+    all_skills = session.exec(query).all()
+    accessible_skills = filter_skills_by_permission(current_user, all_skills)
     
-    # Apply pagination
-    query = query.offset(skip).limit(limit).order_by(Skill.created_at.desc())
-    skills = session.exec(query).all()
+    # Manual pagination after permission filter
+    total = len(accessible_skills)
+    paginated = accessible_skills[skip : skip + limit]
     
-    return SkillsPublic(data=skills, count=count)
+    return SkillsPublic(data=paginated, count=total)
 
 
 # ============ Get Single ============
@@ -72,6 +73,10 @@ async def get_skill(
     skill = session.get(Skill, skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
+        
+    if not check_skill_permission(current_user, skill):
+        raise HTTPException(status_code=403, detail="Not authorized to access this skill")
+        
     return skill
 
 
@@ -85,6 +90,10 @@ async def get_skill_by_name(
     skill = session.exec(select(Skill).where(Skill.name == name)).first()
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
+        
+    if not check_skill_permission(current_user, skill):
+        raise HTTPException(status_code=403, detail="Not authorized to access this skill")
+        
     return skill
 
 
@@ -125,6 +134,10 @@ async def update_skill(
     skill = session.get(Skill, skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
+        
+    # Only creator or superuser can edit
+    if not current_user.is_superuser and skill.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this skill")
     
     if skill_in.name and skill_in.name != skill.name:
         existing = session.exec(select(Skill).where(Skill.name == skill_in.name)).first()
@@ -155,6 +168,10 @@ async def delete_skill(
     skill = session.get(Skill, skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
+        
+    # Only creator or superuser can delete
+    if not current_user.is_superuser and skill.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this skill")
     
     session.delete(skill)
     session.commit()
@@ -175,6 +192,9 @@ async def test_skill(
     skill = session.get(Skill, skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
+        
+    if not check_skill_permission(current_user, skill):
+        raise HTTPException(status_code=403, detail="Not authorized to access this skill")
     
     import time
     start_time = time.time()

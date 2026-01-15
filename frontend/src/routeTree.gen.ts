@@ -20,6 +20,8 @@ import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutModelProvidersRouteImport } from './routes/_layout/model-providers'
 import { Route as LayoutAgentsRouteImport } from './routes/_layout/agents'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
+import { Route as LayoutAdminToolsRouteImport } from './routes/_layout/admin/tools'
+import { Route as LayoutAdminSkillsRouteImport } from './routes/_layout/admin/skills'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -75,30 +77,44 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutAdminToolsRoute = LayoutAdminToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
+const LayoutAdminSkillsRoute = LayoutAdminSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/admin': typeof LayoutAdminRoute
+  '/admin': typeof LayoutAdminRouteWithChildren
   '/agents': typeof LayoutAgentsRoute
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
   '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
+  '/admin/skills': typeof LayoutAdminSkillsRoute
+  '/admin/tools': typeof LayoutAdminToolsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/admin': typeof LayoutAdminRoute
+  '/admin': typeof LayoutAdminRouteWithChildren
   '/agents': typeof LayoutAgentsRoute
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
   '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
+  '/admin/skills': typeof LayoutAdminSkillsRoute
+  '/admin/tools': typeof LayoutAdminToolsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,12 +123,14 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/admin': typeof LayoutAdminRouteWithChildren
   '/_layout/agents': typeof LayoutAgentsRoute
   '/_layout/model-providers': typeof LayoutModelProvidersRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/tasks': typeof LayoutTasksRoute
   '/_layout/': typeof LayoutIndexRoute
+  '/_layout/admin/skills': typeof LayoutAdminSkillsRoute
+  '/_layout/admin/tools': typeof LayoutAdminToolsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +145,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/'
+    | '/admin/skills'
+    | '/admin/tools'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -139,6 +159,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/'
+    | '/admin/skills'
+    | '/admin/tools'
   id:
     | '__root__'
     | '/_layout'
@@ -152,6 +174,8 @@ export interface FileRouteTypes {
     | '/_layout/settings'
     | '/_layout/tasks'
     | '/_layout/'
+    | '/_layout/admin/skills'
+    | '/_layout/admin/tools'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,11 +265,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/admin/tools': {
+      id: '/_layout/admin/tools'
+      path: '/tools'
+      fullPath: '/admin/tools'
+      preLoaderRoute: typeof LayoutAdminToolsRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
+    '/_layout/admin/skills': {
+      id: '/_layout/admin/skills'
+      path: '/skills'
+      fullPath: '/admin/skills'
+      preLoaderRoute: typeof LayoutAdminSkillsRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
   }
 }
 
+interface LayoutAdminRouteChildren {
+  LayoutAdminSkillsRoute: typeof LayoutAdminSkillsRoute
+  LayoutAdminToolsRoute: typeof LayoutAdminToolsRoute
+}
+
+const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
+  LayoutAdminSkillsRoute: LayoutAdminSkillsRoute,
+  LayoutAdminToolsRoute: LayoutAdminToolsRoute,
+}
+
+const LayoutAdminRouteWithChildren = LayoutAdminRoute._addFileChildren(
+  LayoutAdminRouteChildren,
+)
+
 interface LayoutRouteChildren {
-  LayoutAdminRoute: typeof LayoutAdminRoute
+  LayoutAdminRoute: typeof LayoutAdminRouteWithChildren
   LayoutAgentsRoute: typeof LayoutAgentsRoute
   LayoutModelProvidersRoute: typeof LayoutModelProvidersRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
@@ -254,7 +306,7 @@ interface LayoutRouteChildren {
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
-  LayoutAdminRoute: LayoutAdminRoute,
+  LayoutAdminRoute: LayoutAdminRouteWithChildren,
   LayoutAgentsRoute: LayoutAgentsRoute,
   LayoutModelProvidersRoute: LayoutModelProvidersRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,

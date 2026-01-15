@@ -1,6 +1,7 @@
 import uuid
 
 from pydantic import EmailStr
+from sqlalchemy import JSON, text
 from sqlmodel import Field, Relationship, SQLModel
 
 from .agent import Agent, AgentCreate, AgentPublic, AgentsPublic, AgentUpdate
@@ -56,6 +57,9 @@ class UserBase(SQLModel):
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
     avatar_url: str | None = Field(default=None, max_length=500)
+    # Permission control fields
+    department: str | None = Field(default=None, max_length=100, description="用户所属部门")
+    roles: list[str] = Field(default=[], sa_type=JSON, sa_column_kwargs={"server_default": text("'[]'")}, description="用户角色列表")
 
 
 # Properties to receive via API on creation
@@ -79,6 +83,8 @@ class UserUpdateMe(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = Field(default=None, max_length=255)
     avatar_url: str | None = Field(default=None, max_length=500)
+    department: str | None = Field(default=None, max_length=100)
+    roles: list[str] | None = None
 
 
 class UpdatePassword(SQLModel):
