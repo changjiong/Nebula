@@ -30,14 +30,14 @@ function Layout() {
   }, [loadConversations])
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar />
       <SidebarInset>
-        <main className="flex-1 p-6 md:p-8 flex flex-col">
-          <div className="mx-auto max-w-7xl flex-1 w-full flex flex-col">
+        <div className="flex-1 flex flex-col overflow-y-auto p-6 md:p-8">
+          <div className="mx-auto max-w-7xl flex-1 w-full flex flex-col h-full">
             <Outlet />
           </div>
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

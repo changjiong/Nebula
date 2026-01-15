@@ -121,6 +121,67 @@ class OpenAIAdapter(BaseLLMAdapter):
         config: LLMConfig,
     ) -> LLMResponse:
         """Send a chat completion request."""
+        
+        # Experimental: Check for stream context
+        from app.llm.stream_context import stream_context_var
+        stream_ctx = stream_context_var.get()
+        
+        if stream_ctx:
+            # If context is present, we stream internally and push to queue,
+            # then aggregate result to return compatible LLMResponse.
+            full_content = ""
+            full_reasoning = ""
+            tool_calls_dict = {} # accumulate tool calls
+            finish_reason = None
+            usage = None
+            model = config.model
+            
+            async for chunk in self.chat_stream(messages, config):
+                # Push to queue
+                await stream_ctx.queue.put(chunk)
+                
+                # Accumulate for return
+                if chunk.content:
+                    full_content += chunk.content
+                if chunk.reasoning_content:
+                    full_reasoning += chunk.reasoning_content
+                if chunk.finish_reason:
+                    finish_reason = chunk.finish_reason
+                if chunk.tool_call_chunk:
+                    # Basic accumulation for tool calls (simplified)
+                    for tc in chunk.tool_call_chunk:
+                        idx = tc.get("index", 0)
+                        if idx not in tool_calls_dict:
+                            tool_calls_dict[idx] = tc
+                        else:
+                            # Merge fields
+                            existing = tool_calls_dict[idx]
+                            if "function" in tc:
+                                f = tc["function"]
+                                ef = existing.setdefault("function", {})
+                                if "name" in f:
+                                    ef["name"] = ef.get("name", "") + f["name"]
+                                if "arguments" in f:
+                                    ef["arguments"] = ef.get("arguments", "") + f["arguments"]
+                                    
+            # Construct final tool calls
+            final_tool_calls = []
+            if tool_calls_dict:
+                 # Need to implement full parsing logic here or reuse existing method if valid
+                 # For now, simplistic reconstruction
+                 sorted_tcs = [tool_calls_dict[k] for k in sorted(tool_calls_dict.keys())]
+                 final_tool_calls = self._parse_tool_calls(sorted_tcs)
+
+            return LLMResponse(
+                content=full_content if full_content else None,
+                reasoning_content=full_reasoning if full_reasoning else None,
+                tool_calls=final_tool_calls if final_tool_calls else None,
+                finish_reason=finish_reason,
+                model=model,
+                usage=usage
+            )
+
+        # Standard non-streaming behavior
         url = f"{self.api_url}/chat/completions"
         
         payload: dict[str, Any] = {
@@ -161,6 +222,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         
         return LLMResponse(
             content=message.get("content"),
+            reasoning_content=message.get("reasoning_content"),
             tool_calls=tool_calls,
             finish_reason=choice.get("finish_reason"),
             model=data.get("model"),
@@ -219,6 +281,7 @@ class OpenAIAdapter(BaseLLMAdapter):
                         
                         chunk = StreamChunk(
                             content=delta.get("content"),
+                            reasoning_content=delta.get("reasoning_content"),
                             finish_reason=choice.get("finish_reason"),
                             is_first=is_first,
                         )

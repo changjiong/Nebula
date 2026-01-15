@@ -106,6 +106,7 @@ class LLMConfig:
 class LLMResponse:
     """Response from LLM"""
     content: str | None = None
+    reasoning_content: str | None = None  # For Chain of Thought models (e.g. DeepSeek R1)
     tool_calls: list[ToolCall] | None = None
     finish_reason: str | None = None
     model: str | None = None
@@ -118,6 +119,7 @@ class LLMResponse:
     
     def to_message(self) -> Message:
         """Convert to Message for conversation history"""
+        # Note: We might want to persist reasoning_content too, effectively as part of content or separate
         return Message(
             role=MessageRole.ASSISTANT,
             content=self.content,
@@ -129,6 +131,7 @@ class LLMResponse:
 class StreamChunk:
     """A chunk from streaming response"""
     content: str | None = None
+    reasoning_content: str | None = None
     tool_call_chunk: dict[str, Any] | None = None
     finish_reason: str | None = None
     is_first: bool = False

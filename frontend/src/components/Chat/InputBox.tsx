@@ -33,22 +33,24 @@ export function InputBox() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Get models from provider store
-  const { getEnabledModels, fetchProviders } = useModelProviderStore()
+  const { getEnabledModels, fetchProviders, selectedModelId, selectModel } = useModelProviderStore()
   const enabledModels = getEnabledModels()
   const models = enabledModels.length > 0 ? enabledModels : FALLBACK_MODELS
-  const [selectedModel, setSelectedModel] = useState<AvailableModel>(models[0])
+
+  // Derive selected model from store, or fallback to first available
+  const selectedModel = models.find(m => m.id === selectedModelId) || models[0]
 
   // Fetch providers on mount
   useEffect(() => {
     fetchProviders()
   }, [fetchProviders])
 
-  // Update selected model when models change
+  // Sync initial selection if needed
   useEffect(() => {
-    if (models.length > 0 && !models.find((m) => m.id === selectedModel?.id)) {
-      setSelectedModel(models[0])
+    if (!selectedModelId && models.length > 0) {
+      selectModel(models[0].id)
     }
-  }, [models, selectedModel])
+  }, [models, selectedModelId, selectModel])
 
 
   const { streamMessage, isStreaming, abort } = useSSE()
@@ -195,7 +197,7 @@ export function InputBox() {
                 {models.map((model) => (
                   <DropdownMenuItem
                     key={model.id}
-                    onClick={() => setSelectedModel(model)}
+                    onClick={() => selectModel(model.id)}
                   >
                     <span>{model.name}</span>
                   </DropdownMenuItem>

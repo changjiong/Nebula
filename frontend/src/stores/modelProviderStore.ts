@@ -30,6 +30,7 @@ export interface AvailableModel {
 interface ModelProviderState {
     providers: ModelProvider[]
     selectedProviderId: string | null
+    selectedModelId: string | null
     isLoading: boolean
     error: string | null
 
@@ -39,6 +40,7 @@ interface ModelProviderState {
     // Actions
     setProviders: (providers: ModelProvider[]) => void
     selectProvider: (id: string | null) => void
+    selectModel: (id: string | null) => void
     updateProviderLocally: (id: string, updates: Partial<ModelProvider>) => void
     setLoading: (loading: boolean) => void
     setError: (error: string | null) => void
@@ -93,6 +95,7 @@ export const useModelProviderStore = create<ModelProviderState>()(
         (set, get) => ({
             providers: [],
             selectedProviderId: null,
+            selectedModelId: null,
             isLoading: false,
             error: null,
 
@@ -111,8 +114,22 @@ export const useModelProviderStore = create<ModelProviderState>()(
                     )
             },
 
-            setProviders: (providers) => set({ providers }),
+
+
+            setProviders: (providers) => {
+                set({ providers })
+                // Ensure selectedModelId is valid
+                const { selectedModelId, getEnabledModels } = get()
+                const enabled = getEnabledModels()
+                if (enabled.length > 0) {
+                    // If no model selected, or selected model no longer valid, select first available
+                    if (!selectedModelId || !enabled.find(m => m.id === selectedModelId)) {
+                        set({ selectedModelId: enabled[0].id })
+                    }
+                }
+            },
             selectProvider: (id) => set({ selectedProviderId: id }),
+            selectModel: (id) => set({ selectedModelId: id }),
             updateProviderLocally: (id, updates) =>
                 set((state) => ({
                     providers: state.providers.map((p) =>
@@ -130,7 +147,11 @@ export const useModelProviderStore = create<ModelProviderState>()(
                     })
                     if (!response.ok) throw new Error("Failed to fetch providers")
                     const data = await response.json()
-                    set({ providers: data.data, isLoading: false })
+
+                    // Manually trigger setProviders logic to update defaults
+                    const { setProviders } = get()
+                    setProviders(data.data)
+                    set({ isLoading: false })
 
                     // Select first provider if none selected
                     const { selectedProviderId } = get()
@@ -157,7 +178,10 @@ export const useModelProviderStore = create<ModelProviderState>()(
                     )
                     if (!response.ok) throw new Error("Failed to initialize presets")
                     const data = await response.json()
-                    set({ providers: data.data, isLoading: false })
+                    // Manually trigger setProviders logic to update defaults
+                    const { setProviders } = get()
+                    setProviders(data.data)
+                    set({ isLoading: false })
 
                     // Select first provider
                     if (data.data.length > 0) {
@@ -264,6 +288,7 @@ export const useModelProviderStore = create<ModelProviderState>()(
             name: "model-provider-storage",
             partialize: (state) => ({
                 selectedProviderId: state.selectedProviderId,
+                selectedModelId: state.selectedModelId,
             }),
         },
     ),

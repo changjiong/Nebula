@@ -46,6 +46,7 @@ class NFCAgentState(TypedDict, total=False):
 
     # LLM configuration
     model: str
+    provider_id: str | None
     temperature: float
 
     # Available tools for this session
@@ -59,6 +60,9 @@ class NFCAgentState(TypedDict, total=False):
 
     # Final response (set when done)
     final_response: str | None
+    
+    # Chain of thought content (DeepSeek R1 etc)
+    reasoning_content: str | None
 
     # Iteration tracking
     iteration: int
@@ -109,7 +113,11 @@ async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any
         tool_choice="auto" if tools else None,
     )
 
-    response = await gateway.chat(llm_messages, config)
+    response = await gateway.chat(
+        messages=llm_messages,
+        config=config,
+        provider_id=state.get("provider_id"),
+    )
 
     # Check if LLM wants to call tools
     if response.has_tool_calls:
@@ -118,6 +126,7 @@ async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any
             "messages": [response.to_message().to_dict()],
             "status": "tool_calling",
             "iteration": state.get("iteration", 0) + 1,
+            "reasoning_content": response.reasoning_content,
         }
     else:
         # LLM provided final response
@@ -126,6 +135,7 @@ async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any
             "messages": [response.to_message().to_dict()],
             "status": "done",
             "pending_tool_calls": [],
+            "reasoning_content": response.reasoning_content,
         }
 
 
@@ -314,6 +324,7 @@ async def run_nfc_agent(
     session_id: str,
     user_id: str | None = None,
     model: str = "deepseek-chat",
+    provider_id: str | None = None,
     tools: list[ToolDefinition] | None = None,
     session: Session | None = None,
     **kwargs: Any,
@@ -341,12 +352,14 @@ async def run_nfc_agent(
         "session_id": session_id,
         "user_id": user_id,
         "model": model,
+        "provider_id": provider_id,
         "temperature": kwargs.get("temperature", 0.7),
         "available_tools": tools or [],
         "messages": kwargs.get("messages", []),
         "pending_tool_calls": [],
         "tool_results": [],
         "final_response": None,
+        "reasoning_content": None,
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",
@@ -362,6 +375,7 @@ async def stream_nfc_agent(
     session_id: str,
     user_id: str | None = None,
     model: str = "deepseek-chat",
+    provider_id: str | None = None,
     tools: list[ToolDefinition] | None = None,
     session: Session | None = None,
     **kwargs: Any,
@@ -379,12 +393,14 @@ async def stream_nfc_agent(
         "session_id": session_id,
         "user_id": user_id,
         "model": model,
+        "provider_id": provider_id,
         "temperature": kwargs.get("temperature", 0.7),
         "available_tools": tools or [],
         "messages": kwargs.get("messages", []),
         "pending_tool_calls": [],
         "tool_results": [],
         "final_response": None,
+        "reasoning_content": None,
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",

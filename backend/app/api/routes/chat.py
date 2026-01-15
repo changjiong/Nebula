@@ -195,6 +195,7 @@ async def nfc_stream_generator(
     model: str = "deepseek-chat",
     db_session: Any = None,
     tools: list[ToolDefinition] | None = None,
+    provider_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream NFC Agent responses with structured SSE events.
@@ -207,57 +208,140 @@ async def nfc_stream_generator(
     - done: Stream completion
     """
     import json
+    import asyncio
+    from app.llm.stream_context import stream_context_var, StreamContext
+
+    queue = asyncio.Queue()
+    token = stream_context_var.set(StreamContext(queue=queue))
+    
+    # Task to run the graph execution
+    async def run_graph():
+        try:
+            async for event in stream_nfc_agent(
+                input_text=input_text,
+                session_id=session_id,
+                user_id=str(user_id),
+                model=model,
+                tools=tools,
+                session=db_session,
+                provider_id=provider_id,
+            ):
+                await queue.put({"type": "graph_event", "payload": event})
+        except Exception as e:
+            await queue.put({"type": "error", "error": e})
+        finally:
+            await queue.put(None) # Signal done
+
+    # Start graph execution in background
+    graph_task = asyncio.create_task(run_graph())
     
     try:
-        # Stream events from the agent graph
-        async for event in stream_nfc_agent(
-            input_text=input_text,
-            session_id=session_id,
-            user_id=str(user_id),
-            model=model,
-            tools=tools,
-            session=db_session,
-        ):
-            # Handle "think" node events (Tool Calls)
-            if "think" in event:
-                data = event["think"]
-                # If tool calls are pending
-                if "pending_tool_calls" in data and data["pending_tool_calls"]:
-                    for call in data["pending_tool_calls"]:
-                        # Emit tool_call event
-                        sse_data = {
-                            "id": call.id,
-                            "name": call.name,
-                            "arguments": call.arguments,
-                            "status": "calling"
-                        }
-                        yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
+        current_think_id = None
+        
+        # Inject initial thinking step for better UX (Gemini style)
+        initial_think_id = f"think-init-{uuid.uuid4()}"
+        sse_data = {
+            "id": initial_think_id,
+            "title": "Thinking Process",
+            "status": "in-progress",
+            "content": ""
+        }
+        yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+
+        while True:
+            # Wait for next item in queue
+            item = await queue.get()
+            
+            if item is None:
+                # Mark initial thinking as done if it wasn't already
+                sse_data = {
+                    "id": initial_think_id,
+                    "title": "Thinking Process",
+                    "status": "completed",
+                    "content": ""
+                }
+                yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                break
+            
+            if isinstance(item, dict) and item.get("type") == "error":
+                 raise item["error"]
+            
+            if isinstance(item, dict) and item.get("type") == "graph_event":
+                # Handle standard graph events (tool_call logic remains similar, but simplified)
+                event = item["payload"]
                 
-                # If final response is ready (or partial)
-                if "final_response" in data and data["final_response"]:
-                    # Depending on how the graph returns it, might be full text
-                    # For streaming text, we might need granular LLM streaming support
-                    # For now, yield the chunk
-                    yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': data['final_response']})})}\n\n"
-
-            # Handle "execute_tools" node events (Tool Results)
-            if "execute_tools" in event:
-                data = event["execute_tools"]
-                if "tool_results" in data:
-                    for result in data["tool_results"]:
+                if "think" in event:
+                    data = event["think"]
+                    # If tool calls are pending (handled via graph event)
+                    if "pending_tool_calls" in data and data["pending_tool_calls"]:
+                        for call in data["pending_tool_calls"]:
+                            sse_data = {
+                                "id": call.id,
+                                "name": call.name,
+                                "arguments": call.arguments,
+                                "status": "calling"
+                            }
+                            yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
+                    
+                    # We rely on token streaming for content/reasoning, but final graph state 
+                    # can be used for "done" confirmation or non-streaming fallbacks.
+                
+                if "execute_tools" in event:
+                    data = event["execute_tools"]
+                    if "tool_results" in data:
+                        for result in data["tool_results"]:
+                            sse_data = {
+                                "id": result["tool_call_id"],
+                                "name": result["tool_name"],
+                                "result": str(result.get("result", "")),
+                                "success": result.get("success", False),
+                                "error": result.get("error")
+                            }
+                            yield f"data: {json.dumps({'event': 'tool_result', 'data': json.dumps(sse_data)})}\n\n"
+                            
+            else:
+                # It's a StreamChunk from the adapter
+                chunk = item
+                # Handle Reasoning Content
+                if chunk.reasoning_content:
+                    if not current_think_id:
+                        current_think_id = f"think-{uuid.uuid4()}"
+                        # Initialize think step
                         sse_data = {
-                            "id": result["tool_call_id"],
-                            "name": result["tool_name"],
-                            "result": str(result.get("result", "")),
-                            "success": result.get("success", False),
-                            "error": result.get("error")
+                            "id": current_think_id,
+                            "title": "Deep Thinking",
+                            "status": "in-progress",
+                            "content": ""
                         }
-                        yield f"data: {json.dumps({'event': 'tool_result', 'data': json.dumps(sse_data)})}\n\n"
+                        yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                    
+                    # Stream reasoning update
+                    sse_data = {
+                        "id": current_think_id,
+                        "title": "Deep Thinking",
+                        "status": "in-progress",
+                        "content": chunk.reasoning_content
+                    }
+                    yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
 
-            # Handle "respond" node (Done)
-            if "respond" in event:
-                # Completion
-                pass
+                # Check if we should close the thinking step
+                if current_think_id and (chunk.content or chunk.finish_reason):
+                    sse_data = {
+                        "id": current_think_id,
+                        "title": "Deep Thinking",
+                        "status": "completed",
+                        "content": "" # Content update is handled incrementally, just update status
+                    }
+                    yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                    current_think_id = None
+
+                # Handle Message Content
+                if chunk.content:
+                     yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': chunk.content})})}\n\n"
+                
+                # Check for finish
+                if chunk.finish_reason:
+                     pass
 
         yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 
@@ -270,6 +354,11 @@ async def nfc_stream_generator(
         }
         yield f"data: {json.dumps(error_event)}\n\n"
         yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
+    
+    finally:
+        stream_context_var.reset(token)
+
+
 
 
 @router.post("/stream")
@@ -290,6 +379,7 @@ def stream_chat(
     
     input_text = message_in.content
     model = message_in.model or "deepseek-chat"
+    provider_id = message_in.provider_id
     
     # 1. Permission Control: Fetch valid tools for current user
     all_tools = session.exec(select(Tool).where(Tool.status == "active")).all()
@@ -318,6 +408,7 @@ def stream_chat(
             model=model,
             db_session=session,
             tools=tool_definitions,
+            provider_id=provider_id,
         ),
         media_type="text/event-stream",
     )

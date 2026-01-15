@@ -37,33 +37,48 @@ class LLMGateway:
         self._adapters: dict[str, BaseLLMAdapter] = {}
         self._provider_cache: dict[str, ModelProvider] = {}
     
-    def get_adapter(self, provider_type: str) -> BaseLLMAdapter | None:
-        """Get or create an adapter for the given provider type."""
-        if provider_type in self._adapters:
-            return self._adapters[provider_type]
+    def get_adapter(self, identifier: str) -> BaseLLMAdapter | None:
+        """Get or create an adapter for the given provider type or ID."""
+        if identifier in self._adapters:
+            return self._adapters[identifier]
         
         # Load provider config from database
-        provider = self._get_provider(provider_type)
+        provider = self._get_provider(identifier)
         if not provider or not provider.api_key:
             return None
         
         # Create adapter
         adapter = self._create_adapter(provider)
         if adapter:
-            self._adapters[provider_type] = adapter
+            self._adapters[identifier] = adapter
         
         return adapter
     
-    def _get_provider(self, provider_type: str) -> ModelProvider | None:
-        """Get provider configuration from database."""
-        if provider_type in self._provider_cache:
-            return self._provider_cache[provider_type]
+    def _get_provider(self, identifier: str) -> ModelProvider | None:
+        """Get provider configuration from database by type or ID."""
+        if identifier in self._provider_cache:
+            return self._provider_cache[identifier]
         
         if not self.session:
             return None
         
+        # Try finding by ID first (if it looks like a UUID)
+        try:
+            uuid_obj = uuid.UUID(identifier)
+            query = select(ModelProvider).where(
+                ModelProvider.id == uuid_obj,
+                ModelProvider.is_enabled == True,
+            )
+            provider = self.session.exec(query).first()
+            if provider:
+                self._provider_cache[identifier] = provider
+                return provider
+        except ValueError:
+            pass
+
+        # Fallback to finding by provider_type
         query = select(ModelProvider).where(
-            ModelProvider.provider_type == provider_type,
+            ModelProvider.provider_type == identifier,
             ModelProvider.is_enabled == True,
         )
         if self.user_id:
@@ -71,7 +86,7 @@ class LLMGateway:
         
         provider = self.session.exec(query).first()
         if provider:
-            self._provider_cache[provider_type] = provider
+            self._provider_cache[identifier] = provider
         
         return provider
     
@@ -117,6 +132,7 @@ class LLMGateway:
         messages: list[Message],
         config: LLMConfig,
         provider_type: str | None = None,
+        provider_id: str | None = None,
     ) -> LLMResponse:
         """
         Send a chat request through the gateway.
@@ -124,18 +140,20 @@ class LLMGateway:
         Args:
             messages: Conversation history
             config: LLM configuration
-            provider_type: Explicit provider (inferred from model if not provided)
+            provider_type: Explicit provider type (inferred from model if not provided)
+            provider_id: Explicit provider UUID (overrides all else)
             
         Returns:
             LLMResponse with content and/or tool calls
         """
-        # Determine provider
-        provider = provider_type or self.infer_provider(config.model)
+        # Determine provider identifier
+        # Priority: provider_id > provider_type > inferred from model
+        identifier = provider_id or provider_type or self.infer_provider(config.model)
         
         # Get adapter
-        adapter = self.get_adapter(provider)
+        adapter = self.get_adapter(identifier)
         if not adapter:
-            raise ValueError(f"No adapter available for provider: {provider}")
+            raise ValueError(f"No adapter available for provider: {identifier}")
         
         # Make request
         return await adapter.chat(messages, config)
@@ -164,6 +182,7 @@ class LLMGateway:
         tools: list[ToolDefinition],
         config: LLMConfig,
         provider_type: str | None = None,
+        provider_id: str | None = None,
     ) -> LLMResponse:
         """
         Send a chat request with tool definitions (Native Function Calling).
@@ -179,7 +198,7 @@ class LLMGateway:
         """
         # Add tools to config
         config.tools = tools
-        return await self.chat(messages, config, provider_type)
+        return await self.chat(messages, config, provider_type, provider_id)
     
     def list_available_providers(self) -> list[str]:
         """List all available (configured and enabled) providers."""

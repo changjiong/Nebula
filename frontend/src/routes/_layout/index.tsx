@@ -61,7 +61,7 @@ function ChatPage(): React.JSX.Element {
   // Active Conversation: Message list with pinned bottom input
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <MessageList />
       </div>
       <div className="p-4 pt-0 mx-auto w-full max-w-3xl">

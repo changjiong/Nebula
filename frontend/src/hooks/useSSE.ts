@@ -136,6 +136,26 @@ export function useSSE() {
                 })
                 break
 
+              case "thinking":
+                // 思考过程 (Chain of Thought)
+                // thinking event data: { id, title, status, content, timestamp }
+                if (eventData.status === "in-progress" && !eventData.content) {
+                  addThinkingStep({
+                    id: eventData.id || `think-${Date.now()}`,
+                    title: eventData.title || "Thinking...",
+                    status: "in-progress",
+                    content: "",
+                    timestamp: Date.now()
+                  })
+                } else {
+                  updateThinkingStep(eventData.id, {
+                    status: eventData.status,
+                    content: eventData.content,
+                    title: eventData.title
+                  })
+                }
+                break
+
               case "message":
                 if (eventData.content) {
                   assistantMessage += eventData.content

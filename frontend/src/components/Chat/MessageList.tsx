@@ -25,14 +25,19 @@ export function MessageList() {
     .filter((i) => i !== -1)
     .pop()
 
+  console.log("MessageList render:", {
+    msgCount: messages.length,
+    lastAssistantIndex,
+    thinkingStepsCount: thinkingSteps.length
+  })
+
   return (
     <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6 space-y-4 md:space-y-6">
       {messages.map((message, index) => (
         <div key={message.id}>
           {/* Show thinking steps before the last assistant message */}
           {index === lastAssistantIndex &&
-            thinkingSteps.length > 0 &&
-            message.content && (
+            thinkingSteps.length > 0 && (
               <div className="max-w-3xl mx-auto mb-6">
                 <ThinkingMessage steps={thinkingSteps} />
               </div>
