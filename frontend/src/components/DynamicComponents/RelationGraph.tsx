@@ -66,9 +66,10 @@ function RelationNodeItem({
 
   return (
     <div className="relative">
-      <div
-        className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${
-          node.type === "self" ? "bg-muted/30 border border-primary/20" : ""
+      <button
+        type="button"
+        className={`flex w-full items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer border border-transparent transition-colors text-left ${
+          node.type === "self" ? "bg-muted/30 border-primary/20" : ""
         }`}
         onClick={() => hasChildren && setExpanded(!expanded)}
         style={{ marginLeft: `${level * 24}px` }}
@@ -96,7 +97,7 @@ function RelationNodeItem({
             持股 {node.share_ratio}
           </span>
         )}
-      </div>
+      </button>
       {expanded && hasChildren && (
         <div className="mt-1">
           {node.children!.map((child) => (

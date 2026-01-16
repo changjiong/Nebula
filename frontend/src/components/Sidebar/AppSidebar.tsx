@@ -1,4 +1,5 @@
-import { ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ChevronsLeft, ChevronsRight, Database } from "lucide-react"
 
 import { Logo } from "@/components/Common/Logo"
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,18 @@ export function AppSidebar(): React.JSX.Element {
 
         {/* Agent List */}
         <AgentList />
+
+        {/* Admin Links */}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Data Standards" asChild>
+              <Link to="/admin/data-standards">
+                <Database className="size-4" />
+                <span className="truncate">Data Standards</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
 
         {/* Conversation History */}
         <ConversationList />

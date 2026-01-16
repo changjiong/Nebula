@@ -53,19 +53,20 @@ function TreeNodeItem({
         />
       )}
 
-      <div
-        className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 cursor-pointer transition-colors`}
+      <button
+        type="button"
+        className={`flex w-full items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 cursor-pointer transition-colors text-left border border-transparent`}
         onClick={() => hasChildren && setExpanded(!expanded)}
         style={{ marginLeft: `${level * 24}px` }}
       >
         {hasChildren ? (
-          <button className="p-0.5 hover:bg-muted rounded">
+          <span className="p-0.5 hover:bg-muted rounded flex items-center justify-center">
             {expanded ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             )}
-          </button>
+          </span>
         ) : (
           <div className="w-5" />
         )}
@@ -77,7 +78,7 @@ function TreeNodeItem({
             {typeof node.value === "number" ? `${node.value}%` : node.value}
           </span>
         )}
-      </div>
+      </button>
 
       {expanded && hasChildren && (
         <div>

@@ -38,11 +38,8 @@ interface HistoryModalProps {
 
 export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
   const conversations = useChatStore((state) => state.conversations)
-  const {
-    deleteConversation,
-    updateConversation,
-    loadConversation,
-  } = useConversations()
+  const { deleteConversation, updateConversation, loadConversation } =
+    useConversations()
   const [searchQuery, setSearchQuery] = useState("")
   const [hoveredConversation, setHoveredConversation] = useState<string | null>(
     null,
@@ -252,7 +249,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                   <DropdownMenuItem
                                     onClick={async (e) => {
                                       e.stopPropagation()
-                                      await updateConversation(conv.id, { is_pinned: false })
+                                      await updateConversation(conv.id, {
+                                        is_pinned: false,
+                                      })
                                     }}
                                   >
                                     <PinOff className="h-4 w-4 mr-2" />
@@ -390,7 +389,9 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                                     <DropdownMenuItem
                                       onClick={async (e) => {
                                         e.stopPropagation()
-                                        await updateConversation(conv.id, { is_pinned: true })
+                                        await updateConversation(conv.id, {
+                                          is_pinned: true,
+                                        })
                                       }}
                                     >
                                       <Pin className="h-4 w-4 mr-2" />
@@ -437,7 +438,7 @@ export function HistoryModal({ open, onOpenChange }: HistoryModalProps) {
                 </div>
                 <ScrollArea className="flex-1 p-4">
                   {previewConversation.messages &&
-                    previewConversation.messages.length > 0 ? (
+                  previewConversation.messages.length > 0 ? (
                     <div className="space-y-4">
                       {previewConversation.messages
                         .slice(0, 10)

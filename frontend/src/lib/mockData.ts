@@ -92,7 +92,9 @@ export function injectMockData() {
   ]
 
   // Add steps sequentially
-  mockSteps.forEach((step) => store.addThinkingStep(step))
+  mockSteps.forEach((step) => {
+    store.addThinkingStep(step)
+  })
 
   console.log("Mock data injected successfully")
 }

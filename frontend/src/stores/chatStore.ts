@@ -17,6 +17,7 @@ export interface Message {
   content: string
   timestamp: number
   agentId?: string
+  thinkingSteps?: ThinkingStep[] // Persisted thinking chain for this message
 }
 
 export interface Conversation {
@@ -31,7 +32,14 @@ export interface Conversation {
 // 子项类型：搜索结果、文件操作、API调用、浏览、MCP调用、代码执行等
 export interface StepSubItem {
   id: string
-  type: "search-result" | "file-operation" | "api-call" | "text" | "browse" | "mcp-call" | "code-execution"
+  type:
+    | "search-result"
+    | "file-operation"
+    | "api-call"
+    | "text"
+    | "browse"
+    | "mcp-call"
+    | "code-execution"
   title: string
   icon?: string // 图标URL或icon名称
   source?: string // 来源域名（搜索结果用）
@@ -215,12 +223,12 @@ export const useChatStore = create<ChatState>()(
             updatedConversations = conversations.map((conv) =>
               conv.id === currentConversationId
                 ? {
-                  ...conv,
-                  messages: conv.messages.map((msg) =>
-                    msg.id === id ? { ...msg, content } : msg,
-                  ),
-                  updatedAt: new Date(),
-                }
+                    ...conv,
+                    messages: conv.messages.map((msg) =>
+                      msg.id === id ? { ...msg, content } : msg,
+                    ),
+                    updatedAt: new Date(),
+                  }
                 : conv,
             )
           }
@@ -252,14 +260,14 @@ export const useChatStore = create<ChatState>()(
           conversations: state.conversations.map((conv) =>
             conv.id === currentConversationId
               ? {
-                ...conv,
-                messages: conv.messages.map((msg) =>
-                  msg.id === id
-                    ? { ...msg, content: messageToSync.content }
-                    : msg,
-                ),
-                updatedAt: new Date(),
-              }
+                  ...conv,
+                  messages: conv.messages.map((msg) =>
+                    msg.id === id
+                      ? { ...msg, content: messageToSync.content }
+                      : msg,
+                  ),
+                  updatedAt: new Date(),
+                }
               : conv,
           ),
         }))
@@ -272,20 +280,59 @@ export const useChatStore = create<ChatState>()(
           const existingIndex = state.thinkingSteps.findIndex(
             (s) => s.id === step.id,
           )
+          let newThinkingSteps: ThinkingStep[]
           if (existingIndex !== -1) {
-            const updated = [...state.thinkingSteps]
-            updated[existingIndex] = step
-            return { thinkingSteps: updated }
+            newThinkingSteps = [...state.thinkingSteps]
+            newThinkingSteps[existingIndex] = step
+          } else {
+            newThinkingSteps = [...state.thinkingSteps, step]
           }
-          return { thinkingSteps: [...state.thinkingSteps, step] }
+
+          // Also persist to the latest assistant message
+          let lastAssistantMsgIndex = -1
+          for (let i = state.messages.length - 1; i >= 0; i--) {
+            if (state.messages[i].role === "assistant") {
+              lastAssistantMsgIndex = i
+              break
+            }
+          }
+          let updatedMessages = state.messages
+          if (lastAssistantMsgIndex !== -1) {
+            updatedMessages = state.messages.map((msg, idx) =>
+              idx === lastAssistantMsgIndex
+                ? { ...msg, thinkingSteps: newThinkingSteps }
+                : msg,
+            )
+          }
+
+          return { thinkingSteps: newThinkingSteps, messages: updatedMessages }
         }),
 
       updateThinkingStep: (id, updates) =>
-        set((state) => ({
-          thinkingSteps: state.thinkingSteps.map((step) =>
+        set((state) => {
+          const newThinkingSteps = state.thinkingSteps.map((step) =>
             step.id === id ? { ...step, ...updates } : step,
-          ),
-        })),
+          )
+
+          // Also persist to the latest assistant message
+          let lastAssistantMsgIndex = -1
+          for (let i = state.messages.length - 1; i >= 0; i--) {
+            if (state.messages[i].role === "assistant") {
+              lastAssistantMsgIndex = i
+              break
+            }
+          }
+          let updatedMessages = state.messages
+          if (lastAssistantMsgIndex !== -1) {
+            updatedMessages = state.messages.map((msg, idx) =>
+              idx === lastAssistantMsgIndex
+                ? { ...msg, thinkingSteps: newThinkingSteps }
+                : msg,
+            )
+          }
+
+          return { thinkingSteps: newThinkingSteps, messages: updatedMessages }
+        }),
 
       setIsConnecting: (isConnecting) => set({ isConnecting }),
       setCurrentAgentId: (currentAgentId) => set({ currentAgentId }),
@@ -385,13 +432,13 @@ export const useChatStore = create<ChatState>()(
           conversations: state.conversations.map((c) =>
             c.id === id
               ? {
-                ...c,
-                ...(updates.title !== undefined && { title: updates.title }),
-                ...(updates.isPinned !== undefined && {
-                  isPinned: updates.isPinned,
-                }),
-                updatedAt: new Date(),
-              }
+                  ...c,
+                  ...(updates.title !== undefined && { title: updates.title }),
+                  ...(updates.isPinned !== undefined && {
+                    isPinned: updates.isPinned,
+                  }),
+                  updatedAt: new Date(),
+                }
               : c,
           ),
         }))

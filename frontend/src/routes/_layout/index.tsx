@@ -22,8 +22,6 @@ export const Route = createFileRoute("/_layout/")({
 function ChatPage(): React.JSX.Element {
   const { messages } = useChatStore()
 
-
-
   // Expose mock data injection for testing
   React.useEffect(() => {
     // @ts-expect-error

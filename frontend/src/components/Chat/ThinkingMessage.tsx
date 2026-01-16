@@ -1,9 +1,20 @@
-import { CheckCircle2, ChevronDown, Loader2, Search, Globe, FileText, Zap, Sparkles, Code, Database, ServerCog } from "lucide-react"
+import {
+  CheckCircle2,
+  ChevronDown,
+  Code,
+  Database,
+  FileText,
+  Globe,
+  Loader2,
+  Search,
+  ServerCog,
+  Sparkles,
+  Zap,
+} from "lucide-react"
 import { useMemo, useState } from "react"
-
+import { cn } from "@/lib/utils"
 import type { ThinkingStep } from "@/stores/chatStore"
 import { useChatStore } from "@/stores/chatStore"
-import { cn } from "@/lib/utils"
 
 interface ThinkingMessageProps {
   steps: ThinkingStep[]
@@ -43,16 +54,34 @@ const getSubItemIcon = (type: string, title: string) => {
   if (titleLower.includes("搜索") || titleLower.includes("search")) {
     return <Search className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (titleLower.includes("浏览") || titleLower.includes("访问") || titleLower.includes("browse")) {
+  if (
+    titleLower.includes("浏览") ||
+    titleLower.includes("访问") ||
+    titleLower.includes("browse")
+  ) {
     return <Globe className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (titleLower.includes("文件") || titleLower.includes("创建") || titleLower.includes("编辑") || titleLower.includes("file")) {
+  if (
+    titleLower.includes("文件") ||
+    titleLower.includes("创建") ||
+    titleLower.includes("编辑") ||
+    titleLower.includes("file")
+  ) {
     return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (titleLower.includes("mcp") || titleLower.includes("supabase") || titleLower.includes("database")) {
+  if (
+    titleLower.includes("mcp") ||
+    titleLower.includes("supabase") ||
+    titleLower.includes("database")
+  ) {
     return <Database className="w-3.5 h-3.5 text-muted-foreground" />
   }
-  if (titleLower.includes("代码") || titleLower.includes("执行") || titleLower.includes("code") || titleLower.includes("run")) {
+  if (
+    titleLower.includes("代码") ||
+    titleLower.includes("执行") ||
+    titleLower.includes("code") ||
+    titleLower.includes("run")
+  ) {
     return <Code className="w-3.5 h-3.5 text-muted-foreground" />
   }
 
@@ -62,14 +91,18 @@ const getSubItemIcon = (type: string, title: string) => {
 // Gemini风格的动态思考图标
 function ThinkingIcon({ isAnimating }: { isAnimating: boolean }) {
   return (
-    <div className={cn(
-      "relative w-5 h-5 flex items-center justify-center",
-      isAnimating && "animate-pulse"
-    )}>
-      <Sparkles className={cn(
-        "w-5 h-5",
-        isAnimating ? "text-blue-400" : "text-muted-foreground"
-      )} />
+    <div
+      className={cn(
+        "relative w-5 h-5 flex items-center justify-center",
+        isAnimating && "animate-pulse",
+      )}
+    >
+      <Sparkles
+        className={cn(
+          "w-5 h-5",
+          isAnimating ? "text-blue-400" : "text-muted-foreground",
+        )}
+      />
       {isAnimating && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-3 h-3 rounded-full bg-blue-400/30 animate-ping" />
@@ -127,7 +160,7 @@ function TaskGroup({
         <ChevronDown
           className={cn(
             "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-0.5",
-            isExpanded && "rotate-180"
+            isExpanded && "rotate-180",
           )}
         />
       </button>
@@ -149,38 +182,49 @@ function TaskGroup({
 
               {/* 子项列表 */}
               {step.subItems?.map((subItem) => (
-                <div
-                  key={subItem.id}
-                  className={cn(
-                    "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm mt-1.5",
-                    subItem.previewable && "cursor-pointer hover:bg-muted/80 transition-colors"
-                  )}
-                  onClick={subItem.previewable ? () => openCanvas(subItem) : undefined}
-                  onKeyDown={
-                    subItem.previewable
-                      ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          openCanvas(subItem)
-                        }
-                      }
-                      : undefined
-                  }
-                  role={subItem.previewable ? "button" : undefined}
-                  tabIndex={subItem.previewable ? 0 : undefined}
-                >
-                  {subItem.icon ? (
-                    <img src={subItem.icon} alt="" className="w-3.5 h-3.5 rounded-sm object-cover" />
-                  ) : (
-                    getSubItemIcon(subItem.type, subItem.title)
-                  )}
-                  <span className="text-muted-foreground truncate flex-1">
-                    {subItem.title}
-                  </span>
-                  {subItem.source && (
-                    <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
-                      {subItem.source}
+                <div key={subItem.id}>
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: Conditional interactivity provided via role/tabIndex */}
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm mt-1.5",
+                      subItem.previewable &&
+                        "cursor-pointer hover:bg-muted/80 transition-colors",
+                    )}
+                    onClick={
+                      subItem.previewable
+                        ? () => openCanvas(subItem)
+                        : undefined
+                    }
+                    onKeyDown={
+                      subItem.previewable
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              openCanvas(subItem)
+                            }
+                          }
+                        : undefined
+                    }
+                    role={subItem.previewable ? "button" : undefined}
+                    tabIndex={subItem.previewable ? 0 : undefined}
+                  >
+                    {subItem.icon ? (
+                      <img
+                        src={subItem.icon}
+                        alt=""
+                        className="w-3.5 h-3.5 rounded-sm object-cover"
+                      />
+                    ) : (
+                      getSubItemIcon(subItem.type, subItem.title)
+                    )}
+                    <span className="text-muted-foreground truncate flex-1">
+                      {subItem.title}
                     </span>
-                  )}
+                    {subItem.source && (
+                      <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
+                        {subItem.source}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -205,7 +249,7 @@ function StandaloneStep({ step }: { step: ThinkingStep }) {
         onClick={() => hasContent && setIsExpanded(!isExpanded)}
         className={cn(
           "flex items-start gap-2 w-full text-left",
-          hasContent && "cursor-pointer"
+          hasContent && "cursor-pointer",
         )}
       >
         {/* 状态指示器 */}
@@ -227,7 +271,7 @@ function StandaloneStep({ step }: { step: ThinkingStep }) {
           <ChevronDown
             className={cn(
               "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-0.5",
-              isExpanded && "rotate-180"
+              isExpanded && "rotate-180",
             )}
           />
         )}
@@ -246,38 +290,47 @@ function StandaloneStep({ step }: { step: ThinkingStep }) {
           )}
 
           {step.subItems?.map((subItem) => (
-            <div
-              key={subItem.id}
-              className={cn(
-                "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm",
-                subItem.previewable && "cursor-pointer hover:bg-muted/80 transition-colors"
-              )}
-              onClick={subItem.previewable ? () => openCanvas(subItem) : undefined}
-              onKeyDown={
-                subItem.previewable
-                  ? (e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      openCanvas(subItem)
-                    }
-                  }
-                  : undefined
-              }
-              role={subItem.previewable ? "button" : undefined}
-              tabIndex={subItem.previewable ? 0 : undefined}
-            >
-              {subItem.icon ? (
-                <img src={subItem.icon} alt="" className="w-3.5 h-3.5 rounded-sm object-cover" />
-              ) : (
-                getSubItemIcon(subItem.type, subItem.title)
-              )}
-              <span className="text-muted-foreground truncate flex-1">
-                {subItem.title}
-              </span>
-              {subItem.source && (
-                <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
-                  {subItem.source}
+            <div key={subItem.id}>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: Conditional interactivity provided via role/tabIndex */}
+              <div
+                className={cn(
+                  "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm",
+                  subItem.previewable &&
+                    "cursor-pointer hover:bg-muted/80 transition-colors",
+                )}
+                onClick={
+                  subItem.previewable ? () => openCanvas(subItem) : undefined
+                }
+                onKeyDown={
+                  subItem.previewable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          openCanvas(subItem)
+                        }
+                      }
+                    : undefined
+                }
+                role={subItem.previewable ? "button" : undefined}
+                tabIndex={subItem.previewable ? 0 : undefined}
+              >
+                {subItem.icon ? (
+                  <img
+                    src={subItem.icon}
+                    alt=""
+                    className="w-3.5 h-3.5 rounded-sm object-cover"
+                  />
+                ) : (
+                  getSubItemIcon(subItem.type, subItem.title)
+                )}
+                <span className="text-muted-foreground truncate flex-1">
+                  {subItem.title}
                 </span>
-              )}
+                {subItem.source && (
+                  <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
+                    {subItem.source}
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -286,9 +339,7 @@ function StandaloneStep({ step }: { step: ThinkingStep }) {
   )
 }
 
-export function ThinkingMessage({
-  steps,
-}: ThinkingMessageProps) {
+export function ThinkingMessage({ steps }: ThinkingMessageProps) {
   // 整体折叠状态
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -348,7 +399,7 @@ export function ThinkingMessage({
         <ChevronDown
           className={cn(
             "w-4 h-4 text-muted-foreground transition-transform",
-            !isCollapsed && "rotate-180"
+            !isCollapsed && "rotate-180",
           )}
         />
       </button>
@@ -358,8 +409,12 @@ export function ThinkingMessage({
         <div className="space-y-4 pl-7 border-l-2 border-muted ml-2.5">
           {groupedSteps.map((group) => {
             if (group.type === "group") {
-              const allCompleted = group.steps!.every((s) => s.status === "completed")
-              const anyInProgress = group.steps!.some((s) => s.status === "in-progress")
+              const allCompleted = group.steps!.every(
+                (s) => s.status === "completed",
+              )
+              const anyInProgress = group.steps!.some(
+                (s) => s.status === "in-progress",
+              )
 
               return (
                 <TaskGroup

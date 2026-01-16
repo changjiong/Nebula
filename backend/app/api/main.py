@@ -8,6 +8,7 @@ from app.api.routes import (
     model_providers,
     private,
     skills,
+    standard_tables,
     tasks,
     tools,
     users,
@@ -30,6 +31,7 @@ api_router.include_router(
 # Knowledge engineering routers (NEW)
 api_router.include_router(tools.router)  # /tools - Tool management
 api_router.include_router(skills.router)  # /skills - Skill management
+api_router.include_router(standard_tables.router, tags=["standard-tables"])  # /standard-tables
 
 
 if settings.ENVIRONMENT == "local":

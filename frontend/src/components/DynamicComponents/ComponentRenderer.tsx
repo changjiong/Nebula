@@ -56,6 +56,7 @@ export function ComponentRenderer({
           {payload.actions.map((action, idx) => (
             <button
               key={idx}
+              type="button"
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
               onClick={() => handleAction(action)}
             >

@@ -113,13 +113,16 @@ const UserInformation = () => {
       formData.append("file", file)
 
       const token = localStorage.getItem("access_token")
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/users/me/avatar`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/users/me/avatar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         },
-        body: formData,
-      })
+      )
 
       if (!response.ok) {
         const error = await response.json()
@@ -143,12 +146,15 @@ const UserInformation = () => {
     setIsUploadingAvatar(true)
     try {
       const token = localStorage.getItem("access_token")
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/users/me/avatar`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/v1/users/me/avatar`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      })
+      )
 
       if (!response.ok) {
         const error = await response.json()
@@ -189,16 +195,18 @@ const UserInformation = () => {
           </Avatar>
 
           {/* Overlay for upload */}
-          <div
-            className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none p-0"
             onClick={handleAvatarClick}
+            aria-label="Upload avatar"
           >
             {isUploadingAvatar ? (
               <Loader2 className="size-6 text-white animate-spin" />
             ) : (
               <Camera className="size-6 text-white" />
             )}
-          </div>
+          </button>
 
           {/* Hidden file input */}
           <input

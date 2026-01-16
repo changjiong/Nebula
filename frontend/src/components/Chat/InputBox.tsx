@@ -19,26 +19,38 @@ import { useConversations } from "@/hooks/useConversations"
 import { useSSE } from "@/hooks/useSSE"
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
-import { useModelProviderStore, AvailableModel } from "@/stores/modelProviderStore"
+import {
+  type AvailableModel,
+  useModelProviderStore,
+} from "@/stores/modelProviderStore"
 
 // Fallback models when no providers configured
 const FALLBACK_MODELS: AvailableModel[] = [
-  { id: "deepseek-chat", name: "DeepSeek Chat", provider_id: "", provider_name: "DeepSeek", provider_type: "deepseek" },
+  {
+    id: "deepseek-chat",
+    name: "DeepSeek Chat",
+    provider_id: "",
+    provider_name: "DeepSeek",
+    provider_type: "deepseek",
+  },
 ]
 
 export function InputBox() {
   const [input, setInput] = useState("")
-  const { addMessage, isConnecting, setIsConnecting, currentConversationId } = useChatStore()
+  const { addMessage, isConnecting, setIsConnecting, currentConversationId } =
+    useChatStore()
   const { createConversation, sendMessage } = useConversations()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Get models from provider store
-  const { getEnabledModels, fetchProviders, selectedModelId, selectModel } = useModelProviderStore()
+  const { getEnabledModels, fetchProviders, selectedModelId, selectModel } =
+    useModelProviderStore()
   const enabledModels = getEnabledModels()
   const models = enabledModels.length > 0 ? enabledModels : FALLBACK_MODELS
 
   // Derive selected model from store, or fallback to first available
-  const selectedModel = models.find(m => m.id === selectedModelId) || models[0]
+  const selectedModel =
+    models.find((m) => m.id === selectedModelId) || models[0]
 
   // Fetch providers on mount
   useEffect(() => {
@@ -51,7 +63,6 @@ export function InputBox() {
       selectModel(models[0].id)
     }
   }, [models, selectedModelId, selectModel])
-
 
   const { streamMessage, isStreaming, abort } = useSSE()
 
@@ -84,7 +95,11 @@ export function InputBox() {
       }
 
       // Save user message to server
-      const savedUserMessage = await sendMessage(conversationId, "user", userInput)
+      const savedUserMessage = await sendMessage(
+        conversationId,
+        "user",
+        userInput,
+      )
 
       // Add to local state for immediate UI feedback
       const userMessage = {
@@ -107,7 +122,6 @@ export function InputBox() {
       if (conversationId && result?.content) {
         await sendMessage(conversationId, "assistant", result.content)
       }
-
     } catch (error) {
       console.error("Failed to send message:", error)
       addMessage({

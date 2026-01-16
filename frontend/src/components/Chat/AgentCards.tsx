@@ -30,6 +30,7 @@ export function AgentCards() {
         return (
           <button
             key={agent.id}
+            type="button"
             className={cn(
               "flex flex-col items-start gap-2 p-4 rounded-xl border text-left",
               "transition-all duration-200",

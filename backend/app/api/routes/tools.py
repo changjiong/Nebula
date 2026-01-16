@@ -224,12 +224,15 @@ async def test_tool(
     start_time = time.time()
     
     try:
-        # TODO: Implement actual tool execution via ToolExecutor
-        # For now, return a mock result
-        result = {
-            "message": f"Tool '{tool.name}' executed successfully (mock)",
-            "input": request.params,
-        }
+        from app.engine.tool_executor import get_tool_executor
+        
+        executor = get_tool_executor(session)
+        result = await executor.execute(
+            tool_name=tool.name,
+            arguments=request.params,
+            user_id=str(current_user.id),
+        )
+        
         latency_ms = (time.time() - start_time) * 1000
         
         return ToolTestResult(

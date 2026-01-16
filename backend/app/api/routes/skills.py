@@ -200,19 +200,107 @@ async def test_skill(
     start_time = time.time()
     
     try:
-        # TODO: Implement actual skill execution via SkillExecutor
-        result = {
-            "message": f"Skill '{skill.name}' executed successfully (mock)",
-            "input": request.params,
-        }
+        from app.engine.executor import DAGScheduler, ParallelExecutor, Task
+        from app.engine.tool_executor import get_tool_executor
+        
+        # 1. Parse workflow
+        workflow = skill.workflow or {}
+        nodes = workflow.get("nodes", [])
+        output_mapping = workflow.get("output_mapping", {})
+        
+        if not nodes:
+             # Empty workflow
+             return SkillTestResult(
+                success=True,
+                result={"message": "Empty workflow", "input": request.params},
+                latency_ms=(time.time() - start_time) * 1000,
+                tool_results={}
+             )
+
+        # 2. Setup Executors
+        scheduler = DAGScheduler()
+        tool_executor = get_tool_executor(session)
+        
+        # Helper to resolve params from context
+        def resolve_value(path: str, context: dict) -> Any:
+            if not isinstance(path, str) or not path.startswith("$"):
+                return path
+            
+            # Simple dot notation resolver: $.step1.data
+            parts = path.lstrip("$.").split(".")
+            current = context
+            for part in parts:
+                if isinstance(current, dict) and part in current:
+                    current = current[part]
+                else:
+                    return None
+            return current
+
+        def resolve_params(mapping: dict, context: dict) -> dict:
+            resolved = {}
+            for k, v in mapping.items():
+                if isinstance(v, str) and v.startswith("$"):
+                    resolved[k] = resolve_value(v, context)
+                elif isinstance(v, dict):
+                    resolved[k] = resolve_params(v, context)
+                else:
+                    resolved[k] = v
+            return resolved
+
+        # 3. Build DAG
+        for node in nodes:
+            node_id = node.get("id")
+            tool_name = node.get("tool")
+            params_mapping = node.get("params_mapping", {})
+            depends_on = node.get("depends_on", [])
+            
+            # Create a closure for the task handler
+            async def task_handler(ctx, nm=tool_name, pm=params_mapping):
+                # Resolve args
+                args = resolve_params(pm, ctx)
+                # Execute tool
+                return await tool_executor.execute(
+                    tool_name=nm,
+                    arguments=args,
+                    user_id=str(current_user.id),
+                )
+            
+            scheduler.add_task(
+                task_id=node_id,
+                name=f"{node_id} ({tool_name})",
+                handler=task_handler,
+                dependencies=depends_on
+            )
+            
+        # 4. Execute
+        parallel_executor = ParallelExecutor(scheduler=scheduler)
+        # Initial context with input
+        initial_context = {"input": request.params}
+        
+        # execution_results will contain "results": {node_id: output}
+        exec_output = await parallel_executor.execute_all(initial_context)
+        
+        # 5. Process Output
+        # Construct final output based on output_mapping
+        final_result = {}
+        if output_mapping:
+            # Create a context that includes all step results for mapping
+            # Context structure: { "input": ..., "step1": ..., "step2": ... }
+            mapping_context = {"input": request.params, **exec_output}
+            final_result = resolve_params(output_mapping, mapping_context)
+        else:
+            # Default: return all step results
+            final_result = exec_output
+
         latency_ms = (time.time() - start_time) * 1000
         
         return SkillTestResult(
             success=True,
-            result=result,
+            result=final_result,
             latency_ms=latency_ms,
-            tool_results={},
+            tool_results=exec_output,
         )
+
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
         return SkillTestResult(

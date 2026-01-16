@@ -48,6 +48,7 @@ from .tool import (
     ToolTestResult,
     ToolUpdate,
 )
+from .standard_table import StandardTable, TableField, ToolDataMapping
 
 
 # Shared properties
@@ -197,4 +198,8 @@ __all__ = [
     "SkillTestRequest",
     "SkillTestResult",
     "WorkflowNode",
+    # Standard Table (NEW)
+    "StandardTable",
+    "TableField",
+    "ToolDataMapping",
 ]

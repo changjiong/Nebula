@@ -91,6 +91,7 @@ export function MarkdownContent({ data, config }: MarkdownContentProps) {
         <div
           className={maxHeight ? "overflow-y-auto" : ""}
           style={maxHeight ? { maxHeight: `${maxHeight}px` } : {}}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: Renders markdown content
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
       </CardContent>

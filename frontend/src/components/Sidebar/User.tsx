@@ -1,6 +1,7 @@
 import { Link as RouterLink } from "@tanstack/react-router"
 import {
   Briefcase,
+  Database,
   ListTodo,
   LogOut,
   Monitor,
@@ -10,7 +11,6 @@ import {
   Sparkles,
   Sun,
   Wrench,
-  Database,
 } from "lucide-react"
 
 import { useTheme } from "@/components/theme-provider"

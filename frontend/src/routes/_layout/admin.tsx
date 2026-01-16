@@ -11,8 +11,6 @@ export const Route = createFileRoute("/_layout/admin")({
   }),
 })
 
-
-
 function AdminLayout() {
   return <Outlet />
 }

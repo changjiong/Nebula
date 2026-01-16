@@ -1,0 +1,374 @@
+
+> frontend@0.0.0 lint
+> biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true ./
+
+biome.json:2:14 deserialize ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The configuration schema version does not match the CLI version 2.3.10
+  
+    1 │ {
+  > 2 │   "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+      │              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    3 │   "assist": { "actions": { "source": { "organizeImports": "on" } } },
+    4 │   "files": {
+  
+  i   Expected:                     2.3.10
+      Found:                        2.3.8
+  
+  
+  i Run the command biome migrate to migrate the configuration file.
+  
+
+src/components/Timeline/TimelineSubItem.tsx:105:9 lint/complexity/noUselessLoneBlockStatements  FIXABLE  ━━━━━━━━━━
+
+  i This block statement doesn't serve any purpose and can be safely removed.
+  
+    103 │     item.source && (
+    104 │       <span className="text-xs text-muted-foreground truncate block">
+  > 105 │         {item.source}
+        │         ^^^^^^^^^^^^^
+    106 │       </span>
+    107 │     )
+  
+  i Standalone block statements without any block-level declarations are redundant in JavaScript and can be removed to simplify the code.
+  
+  i Safe fix: Remove redundant block.
+  
+    102 102 │         </div>
+    103 103 │       item.source && (
+    104     │ - ······<span·className="text-xs·text-muted-foreground·truncate·block">
+    105     │ - ········{item.source}
+        104 │ + ······<span·className="text-xs·text-muted-foreground·truncate·block">item.source
+    106 105 │         </span>
+    107 106 │       )
+  
+
+src/components/Chat/AgentCards.tsx:31:11 lint/a11y/useButtonType ━━━━━━━━━━
+
+  × Provide an explicit type prop for the button element.
+  
+    29 │         const Icon = agent.icon
+    30 │         return (
+  > 31 │           <button
+       │           ^^^^^^^
+  > 32 │             key={agent.id}
+        ...
+  > 41 │             onClick={() => setCurrentAgentId(agent.id)}
+  > 42 │           >
+       │           ^
+    43 │             <div className="flex items-center gap-2 w-full">
+    44 │               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+  
+  i The default type of a button is submit, which causes the submission of a form when placed inside a `form` element. This is likely not the behaviour that you want inside a React application.
+  
+  i Allowed button types are: submit, button or reset
+  
+
+src/components/Chat/ThinkingMessage.tsx:185:17 lint/a11y/noStaticElementInteractions ━━━━━━━━━━
+
+  × Static Elements should not be interactive.
+  
+    183 │               {/* 子项列表 */}
+    184 │               {step.subItems?.map((subItem) => (
+  > 185 │                 <div
+        │                 ^^^^
+  > 186 │                   key={subItem.id}
+         ...
+  > 205 │                   tabIndex={subItem.previewable ? 0 : undefined}
+  > 206 │                 >
+        │                 ^
+    207 │                   {subItem.icon ? (
+    208 │                     <img
+  
+  i To add interactivity such as a mouse or key event listener to a static element, give the element an appropriate role value.
+  
+
+src/components/Chat/ThinkingMessage.tsx:289:13 lint/a11y/noStaticElementInteractions ━━━━━━━━━━
+
+  × Static Elements should not be interactive.
+  
+    288 │           {step.subItems?.map((subItem) => (
+  > 289 │             <div
+        │             ^^^^
+  > 290 │               key={subItem.id}
+         ...
+  > 309 │               tabIndex={subItem.previewable ? 0 : undefined}
+  > 310 │             >
+        │             ^
+    311 │               {subItem.icon ? (
+    312 │                 <img
+  
+  i To add interactivity such as a mouse or key event listener to a static element, give the element an appropriate role value.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:40:11 lint/a11y/noLabelWithoutControl ━━━━━━━━━━
+
+  × A form label must be associated with an input.
+  
+    38 │       <div className="p-4 space-y-4 text-sm max-h-[calc(100vh-200px)] overflow-y-auto">
+    39 │         <div>
+  > 40 │           <label className="text-xs font-medium text-muted-foreground block mb-1">
+       │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 41 │             字段名
+  > 42 │           </label>
+       │           ^^^^^^^^
+    43 │           <div className="font-mono bg-muted/50 px-2 py-1 rounded inline-flex items-center gap-2">
+    44 │             {field.name}
+  
+  i Consider adding a `for` or `htmlFor` attribute to the label element or moving the input element to inside the label element.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:54:11 lint/a11y/noLabelWithoutControl ━━━━━━━━━━
+
+  × A form label must be associated with an input.
+  
+    53 │         <div>
+  > 54 │           <label className="text-xs font-medium text-muted-foreground block mb-1">
+       │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 55 │             显示名
+  > 56 │           </label>
+       │           ^^^^^^^^
+    57 │           <div className="">{field.display_name}</div>
+    58 │         </div>
+  
+  i Consider adding a `for` or `htmlFor` attribute to the label element or moving the input element to inside the label element.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:61:11 lint/a11y/noLabelWithoutControl ━━━━━━━━━━
+
+  × A form label must be associated with an input.
+  
+    60 │         <div>
+  > 61 │           <label className="text-xs font-medium text-muted-foreground block mb-1">
+       │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 62 │             类型
+  > 63 │           </label>
+       │           ^^^^^^^^
+    64 │           <div className="font-mono text-xs">{field.type}</div>
+    65 │         </div>
+  
+  i Consider adding a `for` or `htmlFor` attribute to the label element or moving the input element to inside the label element.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:68:11 lint/a11y/noLabelWithoutControl ━━━━━━━━━━
+
+  × A form label must be associated with an input.
+  
+    67 │         <div>
+  > 68 │           <label className="text-xs font-medium text-muted-foreground block mb-1">
+       │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 69 │             描述
+  > 70 │           </label>
+       │           ^^^^^^^^
+    71 │           <div className="text-muted-foreground bg-muted/20 p-2 rounded">
+    72 │             {field.description || "暂无描述"}
+  
+  i Consider adding a `for` or `htmlFor` attribute to the label element or moving the input element to inside the label element.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:78:13 lint/a11y/noLabelWithoutControl ━━━━━━━━━━
+
+  × A form label must be associated with an input.
+  
+    76 │         {field.sample_values && field.sample_values.length > 0 && (
+    77 │           <div>
+  > 78 │             <label className="text-xs font-medium text-muted-foreground block mb-1">
+       │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 79 │               示例值
+  > 80 │             </label>
+       │             ^^^^^^^^
+    81 │             <div className="flex flex-wrap gap-1">
+    82 │               {field.sample_values.map((val, idx) => (
+  
+  i Consider adding a `for` or `htmlFor` attribute to the label element or moving the input element to inside the label element.
+  
+
+src/components/DataGraph/FieldDetailPanel.tsx:30:9 lint/a11y/useButtonType ━━━━━━━━━━
+
+  × Provide an explicit type prop for the button element.
+  
+    28 │           </p>
+    29 │         </div>
+  > 30 │         <button
+       │         ^^^^^^^
+  > 31 │           onClick={onClose}
+  > 32 │           className="text-muted-foreground hover:text-foreground"
+  > 33 │         >
+       │         ^
+    34 │           ✕
+    35 │         </button>
+  
+  i The default type of a button is submit, which causes the submission of a form when placed inside a `form` element. This is likely not the behaviour that you want inside a React application.
+  
+  i Allowed button types are: submit, button or reset
+  
+
+src/components/DynamicComponents/ComponentRenderer.tsx:57:13 lint/a11y/useButtonType ━━━━━━━━━━
+
+  × Provide an explicit type prop for the button element.
+  
+    55 │         <div className="flex gap-2 mt-4">
+    56 │           {payload.actions.map((action, idx) => (
+  > 57 │             <button
+       │             ^^^^^^^
+  > 58 │               key={idx}
+  > 59 │               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+  > 60 │               onClick={() => handleAction(action)}
+  > 61 │             >
+       │             ^
+    62 │               {action.label}
+    63 │             </button>
+  
+  i The default type of a button is submit, which causes the submission of a form when placed inside a `form` element. This is likely not the behaviour that you want inside a React application.
+  
+  i Allowed button types are: submit, button or reset
+  
+
+src/components/DynamicComponents/MarkdownContent.tsx:95:11 lint/security/noDangerouslySetInnerHtml ━━━━━━━━━━
+
+  × Avoid passing content using the dangerouslySetInnerHTML prop.
+  
+    93 │           style={maxHeight ? { maxHeight: `${maxHeight}px` } : {}}
+    94 │           // eslint-disable-next-line
+  > 95 │           dangerouslySetInnerHTML={{ __html: htmlContent }}
+       │           ^^^^^^^^^^^^^^^^^^^^^^^
+    96 │         />
+    97 │       </CardContent>
+  
+  ! Setting content using code can expose users to cross-site scripting (XSS) attacks
+  
+
+src/components/DynamicComponents/RelationGraph.tsx:69:7 lint/a11y/noStaticElementInteractions ━━━━━━━━━━
+
+  × Static Elements should not be interactive.
+  
+    67 │   return (
+    68 │     <div className="relative">
+  > 69 │       <div
+       │       ^^^^
+  > 70 │         className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${
+        ...
+  > 74 │         style={{ marginLeft: `${level * 24}px` }}
+  > 75 │       >
+       │       ^
+    76 │         {hasChildren ? (
+    77 │           expanded ? (
+  
+  i To add interactivity such as a mouse or key event listener to a static element, give the element an appropriate role value.
+  
+
+src/components/DynamicComponents/RelationGraph.tsx:69:7 lint/a11y/useKeyWithClickEvents ━━━━━━━━━━
+
+  × Enforce to have the onClick mouse event with the onKeyUp, the onKeyDown, or the onKeyPress keyboard event.
+  
+    67 │   return (
+    68 │     <div className="relative">
+  > 69 │       <div
+       │       ^^^^
+  > 70 │         className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${
+        ...
+  > 74 │         style={{ marginLeft: `${level * 24}px` }}
+  > 75 │       >
+       │       ^
+    76 │         {hasChildren ? (
+    77 │           expanded ? (
+  
+  i Actions triggered using mouse events should have corresponding keyboard events to account for keyboard-only navigation.
+  
+
+src/components/DynamicComponents/TreeView.tsx:59:9 lint/a11y/useSemanticElements ━━━━━━━━━━
+
+  × The elements with this role can be changed to the following elements:
+    <button>
+  
+    57 │         className={`flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 cursor-pointer transition-colors`}
+    58 │         onClick={() => hasChildren && setExpanded(!expanded)}
+  > 59 │         role="button"
+       │         ^^^^^^^^^^^^^
+    60 │         tabIndex={hasChildren ? 0 : -1}
+    61 │         onKeyDown={(e) => {
+  
+  i For examples and more information, see WAI-ARIA Roles
+  
+
+src/components/ModelSettings/ProviderListItem.tsx:97:9 lint/a11y/useSemanticElements ━━━━━━━━━━
+
+  × The elements with this role can be changed to the following elements:
+    <button>
+  
+    95 │       {/* Toggle Switch */}
+    96 │       <div
+  > 97 │         role="button"
+       │         ^^^^^^^^^^^^^
+    98 │         tabIndex={0}
+    99 │         onClick={handleToggle}
+  
+  i For examples and more information, see WAI-ARIA Roles
+  
+
+src/components/Timeline/TimelineSubItem.tsx:87:5 parse ━━━━━━━━━━━━━━
+
+  × expected `)` but instead found `item`
+  
+    85 │       </div>
+    86 │     </div>
+  > 87 │     item.icon ? (
+       │     ^^^^
+    88 │       <img
+    89 │         src={item.icon}
+  
+  i Remove item
+  
+
+src/components/Timeline/TimelineSubItem.tsx:96:7 parse ━━━━━━━━━━━━━━
+
+  × Expected an expression but instead found '<'.
+  
+    94 │     <IconComponent className="w-3 h-3 text-muted-foreground" />
+    95 │   )
+  > 96 │       </div >
+       │       ^
+    97 │     < div className = "flex-1 min-w-0" >
+    98 │       <div className="flex items-center gap-2">
+  
+  i Expected an expression here.
+  
+    94 │     <IconComponent className="w-3 h-3 text-muted-foreground" />
+    95 │   )
+  > 96 │       </div >
+       │       ^
+    97 │     < div className = "flex-1 min-w-0" >
+    98 │       <div className="flex items-center gap-2">
+  
+
+src/components/Timeline/TimelineSubItem.tsx:106:7 parse ━━━━━━━━━━━━━
+
+  × Expected an expression but instead found '<'.
+  
+    104 │       <span className="text-xs text-muted-foreground truncate block">
+    105 │         {item.source}
+  > 106 │       </span>
+        │       ^
+    107 │     )
+    108 │       </div >
+  
+  i Expected an expression here.
+  
+    104 │       <span className="text-xs text-muted-foreground truncate block">
+    105 │         {item.source}
+  > 106 │       </span>
+        │       ^
+    107 │     )
+    108 │       </div >
+  
+
+The number of diagnostics exceeds the limit allowed. Use --max-diagnostics to increase it.
+Diagnostics not shown: 4.
+Checked 122 files in 53ms. Fixed 3 files.
+Found 22 errors.
+Found 2 infos.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+

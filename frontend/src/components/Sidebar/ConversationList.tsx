@@ -1,8 +1,4 @@
-import {
-  ChevronDown,
-  History,
-  MoreHorizontal,
-} from "lucide-react"
+import { ChevronDown, History, MoreHorizontal } from "lucide-react"
 import { useState } from "react"
 import { HistoryModal } from "@/components/Chat/HistoryModal"
 import {
@@ -19,8 +15,8 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { SidebarConversationItem } from "./SidebarConversationItem"
 import { useChatStore } from "@/stores/chatStore"
+import { SidebarConversationItem } from "./SidebarConversationItem"
 
 export function ConversationList() {
   const conversations = useChatStore((state) => state.conversations)
@@ -32,8 +28,6 @@ export function ConversationList() {
   const [isOpen, setIsOpen] = useState(true)
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
-
-
 
   // Limit displayed items
   const MAX_ITEMS = 8

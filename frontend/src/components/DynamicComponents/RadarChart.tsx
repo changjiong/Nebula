@@ -109,6 +109,7 @@ export function RadarChart({
           viewBox={`0 0 ${size} ${size}`}
           className="overflow-visible"
         >
+          <title>{title || "Radar Chart"}</title>
           {/* Background circles (levels) */}
           {levelCircles.map((r, i) => (
             <circle
