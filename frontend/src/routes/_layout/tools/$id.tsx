@@ -1,14 +1,20 @@
-import { ToolDataMappingEditor } from "@/components/Admin/ToolDataMappingEditor"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import axios from "axios"
 import { ArrowLeft, Box } from "lucide-react"
+import { ToolDataMappingEditor } from "@/components/Admin/ToolDataMappingEditor"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-export const Route = createFileRoute("/_layout/admin/tools/$id")({
+export const Route = createFileRoute("/_layout/tools/$id")({
   component: ToolDetailPage,
 })
 
@@ -20,8 +26,8 @@ function ToolDetailPage() {
     queryFn: async () => {
       const res = await axios.get(`/api/v1/tools/${id}`) // Assuming generic GET endpoint exists, if not we use existing fetch list or add endpoint.
       // Wait, standard_tables.py has get /tools/{id}/data-graph but generic Tool GET might be missing in `tools.py`?
-      // Let's assume it exists or I might need to check. 
-      // Based on `tools.tsx`, it just listed tools. 
+      // Let's assume it exists or I might need to check.
+      // Based on `tools.tsx`, it just listed tools.
       // If it fails, I'll need to check `backend/app/api/routes/tools.py`.
       return res.data
     },
@@ -41,14 +47,18 @@ function ToolDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/admin/tools">
+          <Link to="/tools">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{tool.display_name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {tool.display_name}
+          </h1>
           <div className="flex items-center gap-2 text-muted-foreground mt-1">
-            <Badge variant="outline" className="font-mono">{tool.tool_type}</Badge>
+            <Badge variant="outline" className="font-mono">
+              {tool.tool_type}
+            </Badge>
             <span>{tool.name}</span>
           </div>
         </div>
@@ -69,17 +79,27 @@ function ToolDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Description</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Description
+                  </h4>
                   <p className="mt-1">{tool.description}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-medium text-muted-foreground">Category</h4>
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Category
+                    </h4>
                     <p className="mt-1">{tool.category}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-                    <Badge variant={tool.status === "active" ? "default" : "secondary"}>
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Status
+                    </h4>
+                    <Badge
+                      variant={
+                        tool.status === "active" ? "default" : "secondary"
+                      }
+                    >
                       {tool.status}
                     </Badge>
                   </div>
@@ -95,15 +115,25 @@ function ToolDetailPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
                     <div className="text-2xl font-bold">{tool.call_count}</div>
-                    <div className="text-xs text-muted-foreground uppercase mt-1">Calls</div>
+                    <div className="text-xs text-muted-foreground uppercase mt-1">
+                      Calls
+                    </div>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold">{(tool.success_rate * 100).toFixed(1)}%</div>
-                    <div className="text-xs text-muted-foreground uppercase mt-1">Success</div>
+                    <div className="text-2xl font-bold">
+                      {(tool.success_rate * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground uppercase mt-1">
+                      Success
+                    </div>
                   </div>
                   <div className="text-center p-4 bg-muted/50 rounded-lg">
-                    <div className="text-2xl font-bold">{tool.avg_latency_ms}ms</div>
-                    <div className="text-xs text-muted-foreground uppercase mt-1">Latency</div>
+                    <div className="text-2xl font-bold">
+                      {tool.avg_latency_ms}ms
+                    </div>
+                    <div className="text-xs text-muted-foreground uppercase mt-1">
+                      Latency
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -112,7 +142,9 @@ function ToolDetailPage() {
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>Schema Definition</CardTitle>
-                <CardDescription>Input and Output schemas defined for this tool</CardDescription>
+                <CardDescription>
+                  Input and Output schemas defined for this tool
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <div className="border rounded-md p-4 bg-muted/30">
@@ -141,8 +173,9 @@ function ToolDetailPage() {
             <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-sm">
               <h4 className="font-semibold mb-1">Data Lineage Mapping</h4>
               <p>
-                Connect this tool's input/output parameters to Standard Data Tables.
-                This enables automated lineage tracking and impact analysis.
+                Connect this tool's input/output parameters to Standard Data
+                Tables. This enables automated lineage tracking and impact
+                analysis.
               </p>
             </div>
             <ToolDataMappingEditor
@@ -157,7 +190,9 @@ function ToolDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Test Tool</CardTitle>
-              <CardDescription>Execute tool with custom parameters (Coming Soon)</CardDescription>
+              <CardDescription>
+                Execute tool with custom parameters (Coming Soon)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center p-12 text-muted-foreground border-2 border-dashed rounded-lg">

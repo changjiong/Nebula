@@ -177,11 +177,21 @@ def send_message(
     """
     conversation = session.get(Conversation, conversation_id)
     if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        # Lazy creation if conversation not found (similar to stream endpoint)
+        conversation = Conversation(
+            id=conversation_id,
+            user_id=current_user.id,
+            title=message_in.content[:50]  # Auto title
+        )
+        session.add(conversation)
+        session.commit()
+        session.refresh(conversation)
+    
+    # Re-check ownership even if just created (for safety, though redundant if just created)
     if conversation.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    message = ChatMessage(conversation_id=conversation_id, **message_in.model_dump())
+    message = ChatMessage(conversation_id=conversation_id, **message_in.model_dump(exclude={"conversation_id"}))
     session.add(message)
     session.commit()
     session.refresh(message)
@@ -196,6 +206,7 @@ async def nfc_stream_generator(
     db_session: Any = None,
     tools: list[ToolDefinition] | None = None,
     provider_id: str | None = None,
+    conversation_id: uuid.UUID | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream NFC Agent responses with structured SSE events.
@@ -311,6 +322,13 @@ async def nfc_stream_generator(
         current_think_id = None
         accumulated_reasoning = ""  # Accumulate reasoning content
         
+        # Track full response and thinking steps for persistence
+        full_response_content = ""
+        thinking_steps_log: list[dict] = []
+        # Local map to update steps in log by ID
+        steps_map: dict[str, dict] = {}
+
+        
         # NO initial empty thinking event - wait for actual content
         
         while True:
@@ -360,6 +378,26 @@ async def nfc_stream_generator(
                                 "displayTitle": display_title,
                                 "subItemType": sub_item_type,
                             }
+                            
+                            # Log tool call step
+                            step_entry = {
+                                "id": call.id,
+                                "title": display_title,
+                                "status": "in-progress",
+                                "content": f"参数:\n{json.dumps(call.arguments, indent=2, ensure_ascii=False)}",
+                                "timestamp": int(datetime.now().timestamp() * 1000),
+                                "group": tool_group,
+                                "subItems": [{
+                                    "id": f"sub-{call.id}",
+                                    "type": sub_item_type,
+                                    "title": call.name,
+                                    "content": json.dumps(call.arguments, indent=2, ensure_ascii=False),
+                                    "previewable": True
+                                }]
+                            }
+                            thinking_steps_log.append(step_entry)
+                            steps_map[call.id] = step_entry
+                            
                             yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
                 
                 if "execute_tools" in event:
@@ -388,6 +426,16 @@ async def nfc_stream_generator(
                                 "groupId": active_tool_groups.get(tool_group, ""),
                                 "subItemType": sub_item_type,
                             }
+                            
+                            # Update step in log
+                            if result["tool_call_id"] in steps_map:
+                                step = steps_map[result["tool_call_id"]]
+                                step["status"] = "completed" if result.get("success", False) else "failed"
+                                step["content"] = f"执行失败: {result.get('error')}" if result.get("error") else f"执行完成\n\n结果:\n{result_content}"
+                                # Update subItem
+                                if step.get("subItems"):
+                                    step["subItems"][0]["content"] = f"错误: {result.get('error')}" if result.get("error") else result_content
+                            
                             yield f"data: {json.dumps({'event': 'tool_result', 'data': json.dumps(sse_data)})}\n\n"
                             
             else:
@@ -407,6 +455,19 @@ async def nfc_stream_generator(
                             "content": "",
                             "group": "分析与推理"
                         }
+                        
+                        # Log thinking step
+                        step_entry = {
+                            "id": current_think_id,
+                            "title": "思考过程",
+                            "status": "in-progress",
+                            "content": "",
+                            "timestamp": int(datetime.now().timestamp() * 1000),
+                            "group": "分析与推理"
+                        }
+                        thinking_steps_log.append(step_entry)
+                        steps_map[current_think_id] = step_entry
+                        
                         yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                     
                     # Accumulate and stream reasoning update
@@ -418,6 +479,11 @@ async def nfc_stream_generator(
                         "content": chunk.reasoning_content,  # Send delta
                         "accumulated": accumulated_reasoning  # Also send full content
                     }
+                    
+                    # Update log
+                    if current_think_id in steps_map:
+                        steps_map[current_think_id]["content"] = accumulated_reasoning
+                        
                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
 
                 # Check if we should close the thinking step
@@ -429,17 +495,35 @@ async def nfc_stream_generator(
                         "content": accumulated_reasoning,
                         "group": "分析与推理"
                     }
+                    
+                    if current_think_id in steps_map:
+                        steps_map[current_think_id]["status"] = "completed"
+                        steps_map[current_think_id]["content"] = accumulated_reasoning
+
                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                     current_think_id = None
                     accumulated_reasoning = ""
 
                 # Handle Message Content
                 if chunk.content:
+                    full_response_content += chunk.content
                     yield f"data: {json.dumps({'event': 'message', 'data': json.dumps({'content': chunk.content})})}\n\n"
                 
                 # Check for finish
                 if chunk.finish_reason:
                     pass
+
+        # Persist the assistant message
+        if conversation_id and db_session:
+            # Check permissions? Already checked in endpoint.
+            assistant_msg = ChatMessage(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=full_response_content,
+                thinking_steps=thinking_steps_log
+            )
+            db_session.add(assistant_msg)
+            db_session.commit()
 
         yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 
@@ -478,7 +562,34 @@ def stream_chat(
     input_text = message_in.content
     model = message_in.model or "deepseek-chat"
     provider_id = message_in.provider_id
+    conversation_id = message_in.conversation_id
     
+    # Handle Conversation/Message persistence if conversation_id provided
+    if conversation_id:
+        conversation = session.get(Conversation, conversation_id)
+        if not conversation:
+            # Create if missing (lazy creation for client flexibility)
+            conversation = Conversation(
+                id=conversation_id,
+                user_id=current_user.id,
+                title=input_text[:50]  # Auto title
+            )
+            session.add(conversation)
+            session.commit()
+            session.refresh(conversation)
+            
+        if conversation.user_id != current_user.id:
+             raise HTTPException(status_code=403, detail="Not enough permissions")
+        
+        # Save USER message
+        user_msg = ChatMessage(
+            conversation_id=conversation_id,
+            role="user",
+            content=input_text
+        )
+        session.add(user_msg)
+        session.commit()
+
     # 1. Permission Control: Fetch valid tools for current user
     all_tools = session.exec(select(Tool).where(Tool.status == "active")).all()
     accessible_tools = filter_tools_by_permission(current_user, all_tools)
@@ -507,6 +618,7 @@ def stream_chat(
             db_session=session,
             tools=tool_definitions,
             provider_id=provider_id,
+            conversation_id=conversation_id,
         ),
         media_type="text/event-stream",
     )

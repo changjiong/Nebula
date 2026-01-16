@@ -3,9 +3,9 @@ import {
   Background,
   type Connection,
   Controls,
-  Edge,
+  type Edge,
   MarkerType,
-  Node,
+  type Node,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -70,7 +70,7 @@ export function ToolDataGraph({ toolId }: ToolDataGraphProps) {
     // A table might be both, but let's heuristically place them.
 
     // Group mappings by table
-    const tableMappings: Record<string, { inputs: any[], outputs: any[] }> = {}
+    const tableMappings: Record<string, { inputs: any[]; outputs: any[] }> = {}
     tables.forEach((t: any) => {
       tableMappings[t.id] = { inputs: [], outputs: [] }
     })
@@ -122,15 +122,15 @@ export function ToolDataGraph({ toolId }: ToolDataGraphProps) {
           label: table.display_name || table.name,
           fields: [], // We might want to list mapped fields here?
           // For now, TableNode expects 'fields' array, let's pass all fields or just mapped ones?
-          // Ideally passing all fields is better context, but we don't have them in 'tables' response 
+          // Ideally passing all fields is better context, but we don't have them in 'tables' response
           // unless 'tables' includes fields.
           // The backend: `tables = session.exec(select(StandardTable).where(StandardTable.id.in_(table_ids))).all()`
           // This usually lazy loads fields. So fields might be empty or valid if serialization handles it.
-          // Let's rely on what we have. API response usually just dumps model. 
+          // Let's rely on what we have. API response usually just dumps model.
           // If fields are missing, we might need to fetch them.
           // But `StandardTable` includes `fields` relationship. By default SQLModel/Pydantic might not include relationship unless configured.
           // Let's assume for now.
-        }
+        },
       })
 
       // Create Edges
@@ -159,8 +159,7 @@ export function ToolDataGraph({ toolId }: ToolDataGraphProps) {
 
     setNodes(newNodes)
     setEdges(newEdges)
-
-  }, [graphData, toolId, setNodes, setEdges])
+  }, [graphData, setNodes, setEdges])
 
   if (isLoading) return <div>Loading graph...</div>
 

@@ -43,6 +43,7 @@ export function useSSE() {
             content: payload.content,
             model: payload.model,
             provider_id: payload.provider_id || null,
+            conversation_id: payload.conversation_id,
           }),
           signal: abortController.signal,
         })

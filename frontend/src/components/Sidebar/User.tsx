@@ -8,6 +8,8 @@ import {
   Moon,
   Settings,
   Sun,
+  Wrench,
+  BrainCircuit,
 } from "lucide-react"
 
 import { useTheme } from "@/components/theme-provider"
@@ -164,6 +166,18 @@ export function User({ user }: { user: any }) {
               <DropdownMenuItem className="cursor-pointer">
                 <Database className="mr-3 h-4 w-4" />
                 Data Standards
+              </DropdownMenuItem>
+            </RouterLink>
+            <RouterLink to="/tools" onClick={handleMenuClick}>
+              <DropdownMenuItem className="cursor-pointer">
+                <Wrench className="mr-3 h-4 w-4" />
+                Tools
+              </DropdownMenuItem>
+            </RouterLink>
+            <RouterLink to="/skills" onClick={handleMenuClick}>
+              <DropdownMenuItem className="cursor-pointer">
+                <BrainCircuit className="mr-3 h-4 w-4" />
+                Skills
               </DropdownMenuItem>
             </RouterLink>
 

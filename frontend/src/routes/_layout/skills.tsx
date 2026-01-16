@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 
-export const Route = createFileRoute("/_layout/admin/skills")({
+export const Route = createFileRoute("/_layout/skills")({
   component: SkillsEditorPage,
 })
 
@@ -217,7 +217,7 @@ function SkillsEditorPage() {
       <div className="flex items-center justify-between p-4 border-b bg-background">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <a href="/admin/tools">
+            <a href="/tools">
               <ArrowLeft className="h-4 w-4" />
             </a>
           </Button>

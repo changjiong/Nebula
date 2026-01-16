@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -49,12 +50,14 @@ class ConversationsPublic(SQLModel):
 class MessageBase(SQLModel):
     role: str = Field(max_length=50)  # user, assistant, system
     content: str
+    thinking_steps: list[dict] | None = Field(default=None, sa_column=Column(JSON))
 
 
 # Properties to receive on creation
 class MessageCreate(MessageBase):
     model: str | None = None  # Selected model name (e.g., "gpt-4o", "deepseek-chat")
     provider_id: str | None = None  # UUID of the ModelProvider to use
+    conversation_id: uuid.UUID | None = None
 
 
 # Database model for Message

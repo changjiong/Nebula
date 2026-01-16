@@ -15,17 +15,17 @@ import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutToolsRouteImport } from './routes/_layout/tools'
 import { Route as LayoutTasksRouteImport } from './routes/_layout/tasks'
+import { Route as LayoutSkillsRouteImport } from './routes/_layout/skills'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutModelProvidersRouteImport } from './routes/_layout/model-providers'
 import { Route as LayoutDataStandardsRouteImport } from './routes/_layout/data-standards'
 import { Route as LayoutAgentsRouteImport } from './routes/_layout/agents'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutAdminIndexRouteImport } from './routes/_layout/admin/index'
+import { Route as LayoutToolsIdRouteImport } from './routes/_layout/tools/$id'
 import { Route as LayoutDataStandardsIdRouteImport } from './routes/_layout/data-standards/$id'
-import { Route as LayoutAdminToolsRouteImport } from './routes/_layout/admin/tools'
-import { Route as LayoutAdminSkillsRouteImport } from './routes/_layout/admin/skills'
-import { Route as LayoutAdminToolsIdRouteImport } from './routes/_layout/admin/tools/$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -56,9 +56,19 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutToolsRoute = LayoutToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutTasksRoute = LayoutTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutSkillsRoute = LayoutSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
@@ -91,25 +101,15 @@ const LayoutAdminIndexRoute = LayoutAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
+const LayoutToolsIdRoute = LayoutToolsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LayoutToolsRoute,
+} as any)
 const LayoutDataStandardsIdRoute = LayoutDataStandardsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => LayoutDataStandardsRoute,
-} as any)
-const LayoutAdminToolsRoute = LayoutAdminToolsRouteImport.update({
-  id: '/tools',
-  path: '/tools',
-  getParentRoute: () => LayoutAdminRoute,
-} as any)
-const LayoutAdminSkillsRoute = LayoutAdminSkillsRouteImport.update({
-  id: '/skills',
-  path: '/skills',
-  getParentRoute: () => LayoutAdminRoute,
-} as any)
-const LayoutAdminToolsIdRoute = LayoutAdminToolsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => LayoutAdminToolsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -122,13 +122,13 @@ export interface FileRoutesByFullPath {
   '/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
+  '/skills': typeof LayoutSkillsRoute
   '/tasks': typeof LayoutTasksRoute
+  '/tools': typeof LayoutToolsRouteWithChildren
   '/': typeof LayoutIndexRoute
-  '/admin/skills': typeof LayoutAdminSkillsRoute
-  '/admin/tools': typeof LayoutAdminToolsRouteWithChildren
   '/data-standards/$id': typeof LayoutDataStandardsIdRoute
+  '/tools/$id': typeof LayoutToolsIdRoute
   '/admin/': typeof LayoutAdminIndexRoute
-  '/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -139,13 +139,13 @@ export interface FileRoutesByTo {
   '/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
+  '/skills': typeof LayoutSkillsRoute
   '/tasks': typeof LayoutTasksRoute
+  '/tools': typeof LayoutToolsRouteWithChildren
   '/': typeof LayoutIndexRoute
-  '/admin/skills': typeof LayoutAdminSkillsRoute
-  '/admin/tools': typeof LayoutAdminToolsRouteWithChildren
   '/data-standards/$id': typeof LayoutDataStandardsIdRoute
+  '/tools/$id': typeof LayoutToolsIdRoute
   '/admin': typeof LayoutAdminIndexRoute
-  '/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -159,13 +159,13 @@ export interface FileRoutesById {
   '/_layout/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/_layout/model-providers': typeof LayoutModelProvidersRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/skills': typeof LayoutSkillsRoute
   '/_layout/tasks': typeof LayoutTasksRoute
+  '/_layout/tools': typeof LayoutToolsRouteWithChildren
   '/_layout/': typeof LayoutIndexRoute
-  '/_layout/admin/skills': typeof LayoutAdminSkillsRoute
-  '/_layout/admin/tools': typeof LayoutAdminToolsRouteWithChildren
   '/_layout/data-standards/$id': typeof LayoutDataStandardsIdRoute
+  '/_layout/tools/$id': typeof LayoutToolsIdRoute
   '/_layout/admin/': typeof LayoutAdminIndexRoute
-  '/_layout/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -179,13 +179,13 @@ export interface FileRouteTypes {
     | '/data-standards'
     | '/model-providers'
     | '/settings'
+    | '/skills'
     | '/tasks'
+    | '/tools'
     | '/'
-    | '/admin/skills'
-    | '/admin/tools'
     | '/data-standards/$id'
+    | '/tools/$id'
     | '/admin/'
-    | '/admin/tools/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -196,13 +196,13 @@ export interface FileRouteTypes {
     | '/data-standards'
     | '/model-providers'
     | '/settings'
+    | '/skills'
     | '/tasks'
+    | '/tools'
     | '/'
-    | '/admin/skills'
-    | '/admin/tools'
     | '/data-standards/$id'
+    | '/tools/$id'
     | '/admin'
-    | '/admin/tools/$id'
   id:
     | '__root__'
     | '/_layout'
@@ -215,13 +215,13 @@ export interface FileRouteTypes {
     | '/_layout/data-standards'
     | '/_layout/model-providers'
     | '/_layout/settings'
+    | '/_layout/skills'
     | '/_layout/tasks'
+    | '/_layout/tools'
     | '/_layout/'
-    | '/_layout/admin/skills'
-    | '/_layout/admin/tools'
     | '/_layout/data-standards/$id'
+    | '/_layout/tools/$id'
     | '/_layout/admin/'
-    | '/_layout/admin/tools/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -276,11 +276,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/tools': {
+      id: '/_layout/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof LayoutToolsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/tasks': {
       id: '/_layout/tasks'
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof LayoutTasksRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/skills': {
+      id: '/_layout/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof LayoutSkillsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/settings': {
@@ -325,6 +339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminIndexRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
+    '/_layout/tools/$id': {
+      id: '/_layout/tools/$id'
+      path: '/$id'
+      fullPath: '/tools/$id'
+      preLoaderRoute: typeof LayoutToolsIdRouteImport
+      parentRoute: typeof LayoutToolsRoute
+    }
     '/_layout/data-standards/$id': {
       id: '/_layout/data-standards/$id'
       path: '/$id'
@@ -332,50 +353,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutDataStandardsIdRouteImport
       parentRoute: typeof LayoutDataStandardsRoute
     }
-    '/_layout/admin/tools': {
-      id: '/_layout/admin/tools'
-      path: '/tools'
-      fullPath: '/admin/tools'
-      preLoaderRoute: typeof LayoutAdminToolsRouteImport
-      parentRoute: typeof LayoutAdminRoute
-    }
-    '/_layout/admin/skills': {
-      id: '/_layout/admin/skills'
-      path: '/skills'
-      fullPath: '/admin/skills'
-      preLoaderRoute: typeof LayoutAdminSkillsRouteImport
-      parentRoute: typeof LayoutAdminRoute
-    }
-    '/_layout/admin/tools/$id': {
-      id: '/_layout/admin/tools/$id'
-      path: '/$id'
-      fullPath: '/admin/tools/$id'
-      preLoaderRoute: typeof LayoutAdminToolsIdRouteImport
-      parentRoute: typeof LayoutAdminToolsRoute
-    }
   }
 }
 
-interface LayoutAdminToolsRouteChildren {
-  LayoutAdminToolsIdRoute: typeof LayoutAdminToolsIdRoute
-}
-
-const LayoutAdminToolsRouteChildren: LayoutAdminToolsRouteChildren = {
-  LayoutAdminToolsIdRoute: LayoutAdminToolsIdRoute,
-}
-
-const LayoutAdminToolsRouteWithChildren =
-  LayoutAdminToolsRoute._addFileChildren(LayoutAdminToolsRouteChildren)
-
 interface LayoutAdminRouteChildren {
-  LayoutAdminSkillsRoute: typeof LayoutAdminSkillsRoute
-  LayoutAdminToolsRoute: typeof LayoutAdminToolsRouteWithChildren
   LayoutAdminIndexRoute: typeof LayoutAdminIndexRoute
 }
 
 const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
-  LayoutAdminSkillsRoute: LayoutAdminSkillsRoute,
-  LayoutAdminToolsRoute: LayoutAdminToolsRouteWithChildren,
   LayoutAdminIndexRoute: LayoutAdminIndexRoute,
 }
 
@@ -394,13 +379,27 @@ const LayoutDataStandardsRouteChildren: LayoutDataStandardsRouteChildren = {
 const LayoutDataStandardsRouteWithChildren =
   LayoutDataStandardsRoute._addFileChildren(LayoutDataStandardsRouteChildren)
 
+interface LayoutToolsRouteChildren {
+  LayoutToolsIdRoute: typeof LayoutToolsIdRoute
+}
+
+const LayoutToolsRouteChildren: LayoutToolsRouteChildren = {
+  LayoutToolsIdRoute: LayoutToolsIdRoute,
+}
+
+const LayoutToolsRouteWithChildren = LayoutToolsRoute._addFileChildren(
+  LayoutToolsRouteChildren,
+)
+
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRouteWithChildren
   LayoutAgentsRoute: typeof LayoutAgentsRoute
   LayoutDataStandardsRoute: typeof LayoutDataStandardsRouteWithChildren
   LayoutModelProvidersRoute: typeof LayoutModelProvidersRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutSkillsRoute: typeof LayoutSkillsRoute
   LayoutTasksRoute: typeof LayoutTasksRoute
+  LayoutToolsRoute: typeof LayoutToolsRouteWithChildren
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
@@ -410,7 +409,9 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutDataStandardsRoute: LayoutDataStandardsRouteWithChildren,
   LayoutModelProvidersRoute: LayoutModelProvidersRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
+  LayoutSkillsRoute: LayoutSkillsRoute,
   LayoutTasksRoute: LayoutTasksRoute,
+  LayoutToolsRoute: LayoutToolsRouteWithChildren,
   LayoutIndexRoute: LayoutIndexRoute,
 }
 

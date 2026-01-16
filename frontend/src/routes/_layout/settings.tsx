@@ -26,7 +26,11 @@ function UserSettings() {
   const tabs = [
     { value: "my-profile", title: "My Profile", component: UserInformation },
     { value: "password", title: "Password", component: ChangePassword },
-    { value: "model-providers", title: "Model Providers", component: ModelSettings },
+    {
+      value: "model-providers",
+      title: "Model Providers",
+      component: ModelSettings,
+    },
     { value: "danger-zone", title: "Danger Zone", component: DeleteAccount },
   ]
 
@@ -36,7 +40,7 @@ function UserSettings() {
     tabs.splice(tabs.length - 1, 0, {
       value: "admin",
       title: "Admin",
-      component: AdminSettings
+      component: AdminSettings,
     })
   }
 
@@ -63,7 +67,11 @@ function UserSettings() {
         </TabsList>
         <div className="mt-6 flex-1 overflow-y-auto">
           {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} className="mt-0 h-full">
+            <TabsContent
+              key={tab.value}
+              value={tab.value}
+              className="mt-0 h-full"
+            >
               <tab.component />
             </TabsContent>
           ))}

@@ -51,7 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-export const Route = createFileRoute("/_layout/admin/tools")({
+export const Route = createFileRoute("/_layout/tools")({
   component: ToolsPage,
 })
 
@@ -275,7 +275,7 @@ function ToolsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link to="/admin/tools/$id" params={{ id: tool.id }}>
+                          <Link to="/tools/$id" params={{ id: tool.id }}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Manage & Map
                           </Link>

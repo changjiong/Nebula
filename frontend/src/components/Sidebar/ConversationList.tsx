@@ -1,5 +1,5 @@
 import { ChevronDown, History, MoreHorizontal } from "lucide-react"
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import { HistoryModal } from "@/components/Chat/HistoryModal"
 import {
   Collapsible,
@@ -16,6 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useChatStore } from "@/stores/chatStore"
+import { groupConversationsByDate } from "@/utils/dateGrouping"
 import { SidebarConversationItem } from "./SidebarConversationItem"
 
 export function ConversationList() {
@@ -29,10 +30,13 @@ export function ConversationList() {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Limit displayed items
-  const MAX_ITEMS = 8
-  const displayConversations = conversations.slice(0, MAX_ITEMS)
-  const hasMore = conversations.length > MAX_ITEMS
+  // Group conversations
+  // We'll show up to 50 items in the sidebar, grouped.
+  // If more, the "More" button will open the modal.
+  const MAX_SIDEBAR_ITEMS = 50
+  const displayConversations = conversations.slice(0, MAX_SIDEBAR_ITEMS)
+  const groupedConversations = groupConversationsByDate(displayConversations)
+  const hasMore = conversations.length > MAX_SIDEBAR_ITEMS
 
   // When collapsed, show only the History icon as a group indicator
   if (isCollapsed) {
@@ -69,21 +73,28 @@ export function ConversationList() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {displayConversations.length === 0 ? (
+                {groupedConversations.length === 0 ? (
                   <SidebarMenuSubItem>
                     <span className="flex w-full cursor-default select-none items-center rounded-md p-2 text-sm text-muted-foreground">
                       No history available
                     </span>
                   </SidebarMenuSubItem>
                 ) : (
-                  displayConversations.map((conv) => (
-                    <SidebarMenuSubItem key={conv.id}>
-                      <SidebarConversationItem
-                        conversation={conv}
-                        isActive={currentConversationId === conv.id}
-                        onSelect={switchConversation}
-                      />
-                    </SidebarMenuSubItem>
+                  groupedConversations.map((group) => (
+                    <Fragment key={group.title}>
+                      <li className="mb-2 mt-4 px-2 text-xs font-medium text-muted-foreground/50 first:mt-0">
+                        {group.title}
+                      </li>
+                      {group.conversations.map((conv) => (
+                        <SidebarMenuSubItem key={conv.id}>
+                          <SidebarConversationItem
+                            conversation={conv}
+                            isActive={currentConversationId === conv.id}
+                            onSelect={switchConversation}
+                          />
+                        </SidebarMenuSubItem>
+                      ))}
+                    </Fragment>
                   ))
                 )}
 
@@ -94,7 +105,7 @@ export function ConversationList() {
                       className="text-sm text-muted-foreground"
                     >
                       <MoreHorizontal className="size-3 shrink-0" />
-                      <span>+{conversations.length - MAX_ITEMS} more</span>
+                      <span>View all history</span>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 )}

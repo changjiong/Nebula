@@ -60,8 +60,6 @@ export function AppSidebar(): React.JSX.Element {
         {/* Agent List */}
         <AgentList />
 
-
-
         {/* Conversation History */}
         <ConversationList />
       </SidebarContent>
