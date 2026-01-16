@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -319,7 +320,9 @@ async def nfc_stream_generator(
     graph_task = asyncio.create_task(run_graph())
     
     try:
-        current_think_id = None
+        # 1. Initial "Thinking..." event to show responsiveness immediately
+        initial_think_id = f"think-{uuid.uuid4()}"
+        current_think_id = initial_think_id
         accumulated_reasoning = ""  # Accumulate reasoning content
         
         # Track full response and thinking steps for persistence
@@ -329,8 +332,30 @@ async def nfc_stream_generator(
         steps_map: dict[str, dict] = {}
 
         
-        # NO initial empty thinking event - wait for actual content
+        active_think_data = {
+           "id": initial_think_id,
+           "title": "思考过程",
+           "status": "in-progress",
+           "content": "",
+           "group": "分析与推理"
+        }
+        # Log to history
+        thinking_steps_log.append({
+            "id": initial_think_id,
+            "title": "思考过程",
+            "status": "in-progress",
+            "content": "",
+            "timestamp": int(datetime.now().timestamp() * 1000),
+            "group": "分析与推理"
+        })
+        steps_map[initial_think_id] = thinking_steps_log[-1]
         
+        yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(active_think_data)})}\n\n"
+        
+        # Buffer for accumulating tool call chunks during streaming
+        # call_index -> {'id': ..., 'name': ..., 'arguments': ...}
+        active_tool_calls_buffer: dict[int, dict] = {}
+
         while True:
             # Wait for next item in queue
             item = await queue.get()
@@ -503,6 +528,146 @@ async def nfc_stream_generator(
                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
                     current_think_id = None
                     accumulated_reasoning = ""
+
+                # Handle Tool Call Chunks (Real-time Streaming)
+                if chunk.tool_call_chunk:
+                    # chunk.tool_call_chunk is a list of dicts, typically
+                    for tc_chunk in chunk.tool_call_chunk:
+                        idx = tc_chunk.get("index", 0)
+                        
+                        # Initialize buffer for this tool call index if new
+                        if idx not in active_tool_calls_buffer:
+                            # Generate a unique ID for this tool call to use in the frontend
+                            # Note: The LLM will provide an ID usually in the first chunk, 
+                            # but we can fallback or use it.
+                            call_uuid = tc_chunk.get("id")
+                            if not call_uuid:
+                                # If we don't have an ID yet, maybe wait? 
+                                # Or generate a temporary one?
+                                # Usually keys: index, id, type, function
+                                continue # Wait for chunk with ID
+                            
+                            active_tool_calls_buffer[idx] = {
+                                "id": call_uuid,
+                                "name": "",
+                                "arguments": "",
+                                "has_emitted_start": False
+                            }
+
+                        # Update buffer
+                        buffer = active_tool_calls_buffer[idx]
+                        
+                        if "function" in tc_chunk:
+                            fn = tc_chunk["function"]
+                            if "name" in fn:
+                                buffer["name"] += fn["name"]
+                            if "arguments" in fn:
+                                buffer["arguments"] += fn["arguments"]
+
+                        # Determine if we should emit an update
+                        # We need a name to start
+                        if buffer["name"] and not buffer["has_emitted_start"]:
+                            # First time we have a name, emit "start" equivalent using tool_call logic
+                            tool_name = buffer["name"]
+                            tool_group = get_tool_group(tool_name)
+                            sub_item_type = get_sub_item_type(tool_name)
+                            
+                            # Create or get group ID
+                            if tool_group not in active_tool_groups:
+                                active_tool_groups[tool_group] = f"group-{uuid.uuid4()}"
+                            
+                            # Create entry in log if not exists
+                            # Note: This might duplicate with graph_event "tool_call" if we are not careful.
+                            # The graph_event comes from 'think_node' returning 'pending_tool_calls'.
+                            # That usually happens AFTER streaming is done?
+                            # OR: 'think_node' streams chunks. The gateway returns 'tool_calls' in response.
+                            # Then the graph moves to 'execute_tools'.
+                            # So 'think_node' logic in `nfc_graph.py` does NOT yield `graph_event` for tool calls directly?
+                            # Wait, `run_graph` yields `graph_event`.
+                            # In `nfc_graph.py`, `think_node` returns a dict. 
+                            # `stream_nfc_agent` yields state updates. 
+                            # The `think` node completion yields the state with `pending_tool_calls`.
+                            # So `graph_event` happens AFTER the LLM finishes streaming the tool call.
+                            # So we PRE-EMPT the graph event here.
+                            
+                            # To avoid duplication, we need to ensure the IDs match or handle it.
+                            # The IDs should be consistent if they come from the LLM.
+                            
+                            display_title = get_tool_display_title(tool_name, {}) # No args yet
+                            
+                            sse_data = {
+                                "id": buffer["id"],
+                                "name": tool_name,
+                                "arguments": {}, # Partial
+                                "status": "calling",
+                                "group": tool_group,
+                                "groupId": active_tool_groups[tool_group],
+                                "displayTitle": display_title,
+                                "subItemType": sub_item_type
+                            }
+                            
+                            # Log entry (preliminary)
+                            if buffer["id"] not in steps_map:
+                                step_entry = {
+                                    "id": buffer["id"],
+                                    "title": display_title,
+                                    "status": "in-progress",
+                                    "content": "",
+                                    "timestamp": int(datetime.now().timestamp() * 1000),
+                                    "group": tool_group,
+                                    "subItems": [{
+                                        "id": f"sub-{buffer['id']}",
+                                        "type": sub_item_type,
+                                        "title": tool_name,
+                                        "content": "",
+                                        "previewable": True
+                                    }]
+                                }
+                                thinking_steps_log.append(step_entry)
+                                steps_map[buffer["id"]] = step_entry
+                            
+                            yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
+                            buffer["has_emitted_start"] = True
+
+                        # Emit updates for arguments
+                        if buffer["has_emitted_start"] and buffer["arguments"]:
+                             # We can try to parse args or just show raw string
+                             # Frontend expects object maybe?
+                             # Let's try to parse partial JSON if possible, or just send raw buffer if frontend handles it?
+                             # useSSE.ts: content: `参数:\n${JSON.stringify(eventData.arguments, null, 2)}`
+                             # It expects arguments to be an object.
+                             # If we send a string, JSON.stringify(string) -> string literal.
+                             # Let's send a special dict { "raw": ... } if invalid JSON
+                            
+                            args_payload = {}
+                            try:
+                                args_payload = json.loads(buffer["arguments"])
+                            except:
+                                args_payload = {"_raw_args": buffer["arguments"]}
+                            
+                            # Update display title with args
+                            display_title = get_tool_display_title(buffer["name"], args_payload)
+                            
+                            sse_data = {
+                                "id": buffer["id"],
+                                "name": buffer["name"],
+                                "arguments": args_payload,
+                                "status": "calling",
+                                "displayTitle": display_title,
+                                # Include group info to be safe
+                                "group": get_tool_group(buffer["name"]), 
+                            }
+                            
+                            # Update log (in memory)
+                            if buffer["id"] in steps_map:
+                                steps_map[buffer["id"]]["content"] = f"参数:\n{buffer['arguments']}"
+                                steps_map[buffer["id"]]["title"] = display_title
+                                if steps_map[buffer["id"]].get("subItems"):
+                                      steps_map[buffer["id"]]["subItems"][0]["content"] = buffer['arguments']
+
+                            yield f"data: {json.dumps({'event': 'tool_call', 'data': json.dumps(sse_data)})}\n\n"
+
+
 
                 # Handle Message Content
                 if chunk.content:

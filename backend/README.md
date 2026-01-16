@@ -170,3 +170,36 @@ The email templates are in `./backend/app/email-templates/`. Here, there are two
 Before continuing, ensure you have the [MJML extension](https://marketplace.visualstudio.com/items?itemName=attilabuti.vscode-mjml) installed in your VS Code.
 
 Once you have the MJML extension installed, you can create a new email template in the `src` directory. After creating the new email template and with the `.mjml` file open in your editor, open the command palette with `Ctrl+Shift+P` and search for `MJML: Export to HTML`. This will convert the `.mjml` file to a `.html` file and now you can save it in the build directory.
+
+## Knowledge Engineering Modules
+
+The backend now includes dedicated modules for knowledge engineering and agent orchestration:
+
+### Tools (`/api/v1/tools`)
+- Manage atomic callable units (Tools).
+- Supports Native Function Calling (NFC).
+- Integrated with permission control based on user roles.
+
+### Skills (`/api/v1/skills`)
+- Manage complex workflows (Skills) composed of multiple tools.
+- Supports DAG (Directed Acyclic Graph) execution.
+- Dynamic parameter mapping and dependency management.
+
+### Standard Tables (`/api/v1/standard-tables`)
+- Manage data standardization rules and mappings.
+- Used to align varying data schemas with internal standards.
+
+### Data Standards Graph
+- Visualizes the relationship between Tools, Standard Tables, and Fields.
+- Endpoint: `/api/v1/data-standards/graph`
+
+## Chat & Agents
+
+### Chat (`/api/v1/chat`)
+- Supports streaming responses with Server-Sent Events (SSE).
+- Handles "Thinking Chain" display for transparent agent reasoning.
+- Persists conversation history and messages.
+
+### Agents (`/api/v1/agents`)
+- Registry of available AI agents.
+- Logic for agent execution and lifecycle management.

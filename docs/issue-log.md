@@ -36,3 +36,41 @@ This directory contains records of issues encountered and their corresponding fi
   - `frontend/src/components/Admin/Tools/ToolsList.tsx`
   - `backend/app/api/routes/chat.py`
   - `backend/app/core/config.py`
+
+### [2026-01-17] Avatar Persistence & Chat Layout Fixes
+- **Description**: 
+  1. User avatars were lost after backend container restart.
+  2. Chat message bubble width (`max-w-3xl`) was inconsistent with input box width (`max-w-5xl`).
+- **Cause**: 
+  1. `static/avatars` directory was not mounted as a volume in `docker-compose.yml` (incorrectly mounted to `db` service).
+  2. `MessageList.tsx` used a hardcoded narrow width class.
+- **Fix**: 
+  1. Corrected `docker-compose.yml` to mount `./backend/static:/app/static` to the `backend` service.
+  2. Updated `MessageList.tsx` to use `max-w-5xl`.
+- **Files Modified**:
+  - `docker-compose.yml`
+  - `frontend/src/components/Chat/MessageList.tsx`
+
+### [2026-01-17] Chat Send Endpoint CORS/500 Error
+- **Description**: Sending a message resulted in a CORS error on the frontend and a 500 Internal Server Error on the backend (`TypeError: got multiple values for keyword argument 'conversation_id'`).
+- **Cause**: The running backend container was using an outdated version of `backend/app/api/routes/chat.py`. The code on disk had the fix (`exclude={"conversation_id"}`), but the container had not been rebuilt to include it.
+- **Fix**: Rebuilt the backend container (`docker compose up -d --build backend`).
+- **Files Modified**:
+  - `backend/app/api/routes/chat.py` (Fix was already present on disk, applied via rebuild)
+
+### [2026-01-17] Thinking Process & Layout Fixes
+- **Description**: 
+  1. Thinking Process displayed duplicates, infinite spinners, and truncated text.
+  2. Chat messages and input box were misaligned.
+- **Cause**: 
+  1. Backend: New `think_id` generated for streaming (orphaning initial step).
+  2. Frontend: CSS `truncate` class used in `ThinkingMessage.tsx`.
+  3. Frontend: `MessageList.tsx` had mismatched padding (`px-3` vs `p-4`).
+- **Fix**: 
+  1. Backend: Reused `initial_think_id` for streaming.
+  2. Frontend: Removed `truncate`, added `whitespace-pre-wrap`.
+  3. Frontend: Adjusted `MessageList.tsx` padding to `px-4`.
+- **Files Modified**:
+  - `backend/app/api/routes/chat.py`
+  - `frontend/src/components/Chat/ThinkingMessage.tsx`
+  - `frontend/src/components/Chat/MessageList.tsx`

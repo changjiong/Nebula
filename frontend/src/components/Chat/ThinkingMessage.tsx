@@ -1,6 +1,6 @@
 import {
   CheckCircle2,
-  ChevronDown,
+  ChevronRight,
   Code,
   Database,
   FileText,
@@ -11,15 +11,18 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { cn } from "@/lib/utils"
 import type { ThinkingStep } from "@/stores/chatStore"
 import { useChatStore } from "@/stores/chatStore"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 interface ThinkingMessageProps {
   steps: ThinkingStep[]
-  currentStep?: number
-  totalSteps?: number
 }
 
 interface GroupedStep {
@@ -31,322 +34,123 @@ interface GroupedStep {
   step?: ThinkingStep
 }
 
-// 获取子项图标 - Manus style
+// 获取子项图标 - Helper for icons
 const getSubItemIcon = (type: string, title: string) => {
-  // First check by type
+  const props = { className: "w-3.5 h-3.5" }
+
   switch (type) {
     case "search-result":
-      return <Search className="w-3.5 h-3.5 text-muted-foreground" />
+      return <Search {...props} />
     case "browse":
-      return <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+      return <Globe {...props} />
     case "file-operation":
-      return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+      return <FileText {...props} />
     case "mcp-call":
-      return <Database className="w-3.5 h-3.5 text-muted-foreground" />
+      return <Database {...props} />
     case "code-execution":
-      return <Code className="w-3.5 h-3.5 text-muted-foreground" />
+      return <Code {...props} />
     case "api-call":
-      return <ServerCog className="w-3.5 h-3.5 text-muted-foreground" />
+      return <ServerCog {...props} />
   }
 
-  // Fallback: check by title keywords
   const titleLower = title.toLowerCase()
-  if (titleLower.includes("搜索") || titleLower.includes("search")) {
-    return <Search className="w-3.5 h-3.5 text-muted-foreground" />
-  }
-  if (
-    titleLower.includes("浏览") ||
-    titleLower.includes("访问") ||
-    titleLower.includes("browse")
-  ) {
-    return <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-  }
-  if (
-    titleLower.includes("文件") ||
-    titleLower.includes("创建") ||
-    titleLower.includes("编辑") ||
-    titleLower.includes("file")
-  ) {
-    return <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-  }
-  if (
-    titleLower.includes("mcp") ||
-    titleLower.includes("supabase") ||
-    titleLower.includes("database")
-  ) {
-    return <Database className="w-3.5 h-3.5 text-muted-foreground" />
-  }
-  if (
-    titleLower.includes("代码") ||
-    titleLower.includes("执行") ||
-    titleLower.includes("code") ||
-    titleLower.includes("run")
-  ) {
-    return <Code className="w-3.5 h-3.5 text-muted-foreground" />
-  }
+  if (titleLower.includes("搜索") || titleLower.includes("search"))
+    return <Search {...props} />
+  if (titleLower.includes("浏览") || titleLower.includes("visit") || titleLower.includes("browse"))
+    return <Globe {...props} />
+  if (titleLower.includes("文件") || titleLower.includes("file") || titleLower.includes("create") || titleLower.includes("edit"))
+    return <FileText {...props} />
+  if (titleLower.includes("mcp") || titleLower.includes("database"))
+    return <Database {...props} />
+  if (titleLower.includes("code") || titleLower.includes("run") || titleLower.includes("exec"))
+    return <Code {...props} />
 
-  return <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+  return <Zap {...props} />
 }
 
-// Gemini风格的动态思考图标
 function ThinkingIcon({ isAnimating }: { isAnimating: boolean }) {
   return (
-    <div
-      className={cn(
-        "relative w-5 h-5 flex items-center justify-center",
-        isAnimating && "animate-pulse",
-      )}
-    >
+    <div className={cn("relative flex items-center justify-center p-0.5")}>
       <Sparkles
         className={cn(
-          "w-5 h-5",
-          isAnimating ? "text-blue-400" : "text-muted-foreground",
+          "w-4 h-4 transition-colors duration-500",
+          isAnimating ? "text-amber-500/80 animate-pulse" : "text-muted-foreground/60"
         )}
       />
-      {isAnimating && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-3 h-3 rounded-full bg-blue-400/30 animate-ping" />
-        </div>
-      )}
     </div>
   )
 }
 
-// 单个分组任务卡片
-function TaskGroup({
+function StepItem({
+  icon,
   title,
-  description,
-  steps,
-  isCompleted,
-  isInProgress,
+  subtitle,
+  status,
+  onClick,
+  isInteractive,
 }: {
+  icon: React.ReactNode
   title: string
-  description?: string
-  steps: ThinkingStep[]
-  isCompleted: boolean
-  isInProgress: boolean
+  subtitle?: string
+  status?: "pending" | "in-progress" | "completed" | "failed" // simplified status
+  onClick?: () => void
+  isInteractive?: boolean
 }) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const { openCanvas } = useChatStore()
-
   return (
-    <div className="space-y-2">
-      {/* 标题行 */}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-start gap-2 w-full text-left group"
-      >
-        {/* 状态指示器 */}
-        {isCompleted ? (
-          <CheckCircle2 className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-        ) : isInProgress ? (
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mt-0.5 shrink-0" />
-        ) : (
-          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 mt-0.5 shrink-0" />
-        )}
-
-        {/* 标题和描述 */}
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-foreground">{title}</span>
-          {description && (
-            <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-              {description}
-            </p>
-          )}
-        </div>
-
-        {/* 展开/折叠箭头 */}
-        <ChevronDown
-          className={cn(
-            "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-0.5",
-            isExpanded && "rotate-180",
-          )}
-        />
-      </button>
-
-      {/* 子步骤列表 */}
-      {isExpanded && steps.length > 0 && (
-        <div className="ml-6 space-y-1.5">
-          {steps.map((step) => (
-            <div key={step.id}>
-              {/* 主步骤 */}
-              {step.content && (
-                <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm">
-                  {getSubItemIcon("text", step.title)}
-                  <span className="text-muted-foreground truncate">
-                    {step.content}
-                  </span>
-                </div>
-              )}
-
-              {/* 子项列表 */}
-              {step.subItems?.map((subItem) => (
-                <div key={subItem.id}>
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: Conditional interactivity provided via role/tabIndex */}
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm mt-1.5",
-                      subItem.previewable &&
-                        "cursor-pointer hover:bg-muted/80 transition-colors",
-                    )}
-                    onClick={
-                      subItem.previewable
-                        ? () => openCanvas(subItem)
-                        : undefined
-                    }
-                    onKeyDown={
-                      subItem.previewable
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              openCanvas(subItem)
-                            }
-                          }
-                        : undefined
-                    }
-                    role={subItem.previewable ? "button" : undefined}
-                    tabIndex={subItem.previewable ? 0 : undefined}
-                  >
-                    {subItem.icon ? (
-                      <img
-                        src={subItem.icon}
-                        alt=""
-                        className="w-3.5 h-3.5 rounded-sm object-cover"
-                      />
-                    ) : (
-                      getSubItemIcon(subItem.type, subItem.title)
-                    )}
-                    <span className="text-muted-foreground truncate flex-1">
-                      {subItem.title}
-                    </span>
-                    {subItem.source && (
-                      <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
-                        {subItem.source}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+    <div
+      onClick={onClick}
+      onKeyDown={isInteractive ? (e) => (e.key === "Enter" || e.key === " ") && onClick?.() : undefined}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      className={cn(
+        "flex items-start gap-3 py-1.5 px-2 -ml-2 rounded-md transition-colors text-sm group/item",
+        isInteractive && "hover:bg-muted/50 cursor-pointer"
       )}
-    </div>
-  )
-}
-
-// 独立步骤（无分组）
-function StandaloneStep({ step }: { step: ThinkingStep }) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const { openCanvas } = useChatStore()
-  const hasContent = step.content || (step.subItems && step.subItems.length > 0)
-
-  return (
-    <div className="space-y-2">
-      {/* 标题行 */}
-      <button
-        type="button"
-        onClick={() => hasContent && setIsExpanded(!isExpanded)}
-        className={cn(
-          "flex items-start gap-2 w-full text-left",
-          hasContent && "cursor-pointer",
-        )}
-      >
-        {/* 状态指示器 */}
-        {step.status === "completed" ? (
-          <CheckCircle2 className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-        ) : step.status === "in-progress" ? (
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mt-0.5 shrink-0" />
+    >
+      <div className="mt-0.5 text-muted-foreground/70 group-hover/item:text-foreground/80 transition-colors">
+        {status === "in-progress" ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+        ) : status === "completed" ? (
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500/70" />
         ) : (
-          <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/40 mt-0.5 shrink-0" />
+          icon
         )}
+      </div>
 
-        {/* 标题 */}
-        <span className="text-sm font-medium text-foreground flex-1">
-          {step.title}
-        </span>
-
-        {/* 展开/折叠箭头 */}
-        {hasContent && (
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 text-muted-foreground shrink-0 transition-transform mt-0.5",
-              isExpanded && "rotate-180",
-            )}
-          />
-        )}
-      </button>
-
-      {/* 内容 */}
-      {isExpanded && hasContent && (
-        <div className="ml-6 space-y-1.5">
-          {step.content && (
-            <div className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm">
-              {getSubItemIcon("text", step.title)}
-              <span className="text-muted-foreground truncate">
-                {step.content}
-              </span>
-            </div>
-          )}
-
-          {step.subItems?.map((subItem) => (
-            <div key={subItem.id}>
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: Conditional interactivity provided via role/tabIndex */}
-              <div
-                className={cn(
-                  "flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/50 text-sm",
-                  subItem.previewable &&
-                    "cursor-pointer hover:bg-muted/80 transition-colors",
-                )}
-                onClick={
-                  subItem.previewable ? () => openCanvas(subItem) : undefined
-                }
-                onKeyDown={
-                  subItem.previewable
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          openCanvas(subItem)
-                        }
-                      }
-                    : undefined
-                }
-                role={subItem.previewable ? "button" : undefined}
-                tabIndex={subItem.previewable ? 0 : undefined}
-              >
-                {subItem.icon ? (
-                  <img
-                    src={subItem.icon}
-                    alt=""
-                    className="w-3.5 h-3.5 rounded-sm object-cover"
-                  />
-                ) : (
-                  getSubItemIcon(subItem.type, subItem.title)
-                )}
-                <span className="text-muted-foreground truncate flex-1">
-                  {subItem.title}
-                </span>
-                {subItem.source && (
-                  <span className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
-                    {subItem.source}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="flex-1 min-w-0 grid gap-0.5">
+        <div className={cn(
+          "font-medium leading-none truncate",
+          status === "in-progress" ? "text-foreground" : "text-muted-foreground/90"
+        )}>
+          {title}
         </div>
-      )}
+        {subtitle && (
+          <div className="text-xs text-muted-foreground/60 whitespace-pre-wrap break-words font-mono">
+            {subtitle}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 export function ThinkingMessage({ steps }: ThinkingMessageProps) {
-  // 整体折叠状态
-  const [isCollapsed, setIsCollapsed] = useState(false)
-
-  // 判断是否有任务正在进行
+  const [isOpen, setIsOpen] = useState(false)
   const isThinking = steps.some((s) => s.status === "in-progress")
+  const { openCanvas } = useChatStore()
 
-  // 按分组组织步骤
+  // Auto-expand when thinking starts, but allow user to collapse
+  // Auto-expand when thinking starts, and auto-collapse when done (Vercel style)
+  useEffect(() => {
+    if (isThinking) {
+      if (!isOpen) setIsOpen(true)
+    } else {
+      // When thinking finishes, collapse it by default
+      if (isOpen) setIsOpen(false)
+    }
+  }, [isThinking])
+
+  // Grouping Logic
   const groupedSteps = useMemo(() => {
     const groups: GroupedStep[] = []
     let currentGroup: GroupedStep | null = null
@@ -382,56 +186,116 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
     return groups
   }, [steps])
 
+  const currentStatusText = useMemo(() => {
+    if (!isThinking) return `Thought Process • ${steps.length} steps`
+
+    // Find the last active step
+    const activeStep = [...steps].reverse().find((s) => s.status === "in-progress")
+    if (activeStep) return activeStep.title
+    return "Thinking..."
+  }, [isThinking, steps])
+
   if (steps.length === 0) return null
 
   return (
-    <div className="my-4">
-      {/* Gemini风格的 "Show thinking" 整体折叠按钮 */}
-      <button
-        type="button"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex items-center gap-2 mb-3 group"
-      >
-        <ThinkingIcon isAnimating={isThinking} />
-        <span className="text-sm font-medium text-foreground">
-          {isThinking ? "Thinking..." : "Show thinking"}
-        </span>
-        <ChevronDown
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="w-full my-4"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
           className={cn(
-            "w-4 h-4 text-muted-foreground transition-transform",
-            !isCollapsed && "rotate-180",
+            "flex items-center gap-2.5 w-full text-left group select-none py-1 rounded-md transition-colors",
+            "hover:bg-muted/30"
           )}
-        />
-      </button>
+        >
+          <div className="flex items-center justify-center w-5 h-5">
+            {isThinking ? (
+              <Loader2 className="w-4 h-4 animate-spin text-amber-500/80" />
+            ) : (
+              <ThinkingIcon isAnimating={false} />
+            )}
+          </div>
 
-      {/* 折叠内容 */}
-      {!isCollapsed && (
-        <div className="space-y-4 pl-7 border-l-2 border-muted ml-2.5">
+          <span className={cn(
+            "text-sm font-medium transition-colors",
+            isThinking ? "text-foreground" : "text-muted-foreground"
+          )}>
+            {currentStatusText}
+          </span>
+
+          <ChevronRight
+            className={cn(
+              "w-4 h-4 text-muted-foreground/50 transition-all duration-200 ml-auto mr-1",
+              isOpen && "rotate-90"
+            )}
+          />
+        </button>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent>
+        <div className="relative mt-2 ml-2.5 pl-4 border-l-2 border-border/40 space-y-3 pb-2 animate-in slide-in-from-top-2 fade-in duration-200">
           {groupedSteps.map((group) => {
             if (group.type === "group") {
-              const allCompleted = group.steps!.every(
-                (s) => s.status === "completed",
-              )
-              const anyInProgress = group.steps!.some(
-                (s) => s.status === "in-progress",
-              )
-
+              // Render Group
               return (
-                <TaskGroup
-                  key={group.id}
-                  title={group.title!}
-                  description={group.description}
-                  steps={group.steps!}
-                  isCompleted={allCompleted}
-                  isInProgress={anyInProgress}
-                />
+                <div key={group.id} className="space-y-1.5">
+                  <div className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
+                    {group.title}
+                  </div>
+                  {group.steps?.map(step => (
+                    <div key={step.id}>
+                      <StepItem
+                        icon={getSubItemIcon("text", step.title)}
+                        title={step.content || step.title}
+                        status={step.status as any}
+                      />
+                      {step.subItems?.map(subItem => (
+                        <div key={subItem.id} className="pl-4 mt-1 border-l border-border/30 ml-1">
+                          <StepItem
+                            icon={subItem.icon ? <img src={subItem.icon} className="w-3.5 h-3.5 rounded-sm" /> : getSubItemIcon(subItem.type, subItem.title)}
+                            title={subItem.title}
+                            subtitle={subItem.source}
+                            isInteractive={!!subItem.previewable}
+                            onClick={() => subItem.previewable && openCanvas(subItem)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               )
             }
 
-            return <StandaloneStep key={group.id} step={group.step!} />
+            // Render Standalone Step
+            const step = group.step!
+            return (
+              <div key={group.id} className="space-y-1">
+                {/* If it has no content/subitems, maybe just a title line? */}
+                <StepItem
+                  icon={getSubItemIcon("text", step.title)}
+                  title={step.title}
+                  subtitle={step.content}
+                  status={step.status as any}
+                />
+                {step.subItems?.map(subItem => (
+                  <div key={subItem.id} className="pl-4 mt-1 border-l border-border/30 ml-1">
+                    <StepItem
+                      icon={subItem.icon ? <img src={subItem.icon} className="w-3.5 h-3.5 rounded-sm" /> : getSubItemIcon(subItem.type, subItem.title)}
+                      title={subItem.title}
+                      subtitle={subItem.source}
+                      isInteractive={!!subItem.previewable}
+                      onClick={() => subItem.previewable && openCanvas(subItem)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )
           })}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }

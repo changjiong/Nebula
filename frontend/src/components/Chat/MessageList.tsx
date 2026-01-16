@@ -32,7 +32,7 @@ export function MessageList() {
   })
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6 space-y-5 md:space-y-6">
+    <div className="flex-1 overflow-y-auto px-4 py-4 md:px-4 md:py-6 space-y-5 md:space-y-6">
       {messages.map((message, index) => {
         // Determine which thinking steps to show for this assistant message
         // Priority: persisted steps on message > global state (for live streaming)
@@ -49,7 +49,7 @@ export function MessageList() {
             {message.role === "assistant" &&
               stepsToShow &&
               stepsToShow.length > 0 && (
-                <div className="w-full max-w-3xl mx-auto mb-6">
+                <div className="w-full max-w-5xl mx-auto mb-2">
                   <ThinkingMessage steps={stepsToShow} />
                 </div>
               )}
@@ -57,7 +57,7 @@ export function MessageList() {
             {/* Message */}
             {message.role === "user" ? (
               // User message: Right side bubble
-              <div className="flex w-full justify-end max-w-3xl mx-auto">
+              <div className="flex w-full justify-end max-w-5xl mx-auto">
                 <div className="px-4 py-2.5 rounded-2xl max-w-[80%] bg-secondary text-secondary-foreground border border-border/50">
                   <p className="m-0 text-sm leading-relaxed whitespace-pre-wrap">
                     {message.content}
@@ -72,7 +72,7 @@ export function MessageList() {
               </div>
             ) : (
               // Assistant message: Document style with avatar
-              <div className="w-full max-w-3xl mx-auto">
+              <div className="w-full max-w-5xl mx-auto">
                 <div className="flex items-start gap-3">
                   {/* Avatar */}
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
