@@ -5,3 +5,16 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 .env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Frontend build
+frontend/dist/
+*.log

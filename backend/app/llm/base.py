@@ -31,8 +31,9 @@ class Message:
     def to_dict(self) -> dict[str, Any]:
         """Convert to API-friendly dict"""
         result: dict[str, Any] = {"role": self.role.value}
-        if self.content is not None:
-            result["content"] = self.content
+        # Always include 'content' key - LangChain requires both 'role' and 'content'
+        # For tool-calling responses, content may be None but key must exist
+        result["content"] = self.content if self.content is not None else ""
         if self.tool_calls:
             result["tool_calls"] = [tc.to_dict() for tc in self.tool_calls]
         if self.tool_call_id:

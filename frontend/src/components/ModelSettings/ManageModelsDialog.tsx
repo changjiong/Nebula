@@ -33,6 +33,8 @@ interface ManageModelsDialogProps {
     onToggleModel: (modelId: string) => void
     onRefresh?: () => void
     isRefreshing?: boolean
+    onSelectAll?: () => void
+    onClearAll?: () => void
 }
 
 // Model categories for filter tabs (based on CherryStudio)
@@ -55,6 +57,8 @@ export function ManageModelsDialog({
     onToggleModel,
     onRefresh,
     isRefreshing = false,
+    onSelectAll,
+    onClearAll,
 }: ManageModelsDialogProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedCategory, setSelectedCategory] = useState("all")
@@ -123,6 +127,7 @@ export function ManageModelsDialog({
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="搜索模型 ID 或名称"
                             className="pl-9"
+                            autoComplete="off"
                         />
                     </div>
                     <Button
@@ -142,8 +147,8 @@ export function ManageModelsDialog({
                             key={cat.id}
                             onClick={() => setSelectedCategory(cat.id)}
                             className={`text-sm whitespace-nowrap ${selectedCategory === cat.id
-                                    ? "text-primary font-medium"
-                                    : "text-muted-foreground hover:text-foreground"
+                                ? "text-primary font-medium"
+                                : "text-muted-foreground hover:text-foreground"
                                 }`}
                         >
                             {cat.label}
@@ -234,9 +239,29 @@ export function ManageModelsDialog({
 
                 {/* Footer */}
                 <div className="flex justify-between items-center pt-2 border-t">
-                    <span className="text-sm text-muted-foreground">
-                        已选择 {enabledCount} 个模型
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-muted-foreground">
+                            已选择 {enabledCount} / {models.length} 个模型
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onSelectAll}
+                                disabled={!onSelectAll}
+                            >
+                                全选
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onClearAll}
+                                disabled={!onClearAll || enabledCount === 0}
+                            >
+                                清空
+                            </Button>
+                        </div>
+                    </div>
                     <Button onClick={() => onOpenChange(false)}>完成</Button>
                 </div>
             </DialogContent>

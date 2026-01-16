@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react"
 import ReactMarkdown from "react-markdown"
-import { cn } from "@/lib/utils"
 import { useChatStore } from "@/stores/chatStore"
 import { ContentCanvas } from "../Timeline/ContentCanvas"
 import { ThinkingMessage } from "./ThinkingMessage"

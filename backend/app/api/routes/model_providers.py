@@ -238,7 +238,7 @@ async def test_provider_connection(
                     return ModelProviderTestResult(
                         success=True,
                         message="Connection successful",
-                        available_models=models[:20],  # Limit to 20 models
+                        available_models=models,  # Return all models
                     )
                 else:
                     return ModelProviderTestResult(
@@ -283,7 +283,7 @@ async def test_provider_connection(
                     return ModelProviderTestResult(
                         success=True,
                         message="Connection successful",
-                        available_models=models[:20],
+                        available_models=models,  # Return all models
                     )
                 return ModelProviderTestResult(
                     success=False,
@@ -341,7 +341,7 @@ async def get_provider_models(
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    return [m.get("id") for m in data.get("data", [])][:20]
+                    return [m.get("id") for m in data.get("data", [])]  # Return all models
     except Exception:
         pass
 

@@ -74,6 +74,7 @@ export function ProviderDetail() {
     const [showManageDialog, setShowManageDialog] = useState(false)
     const [showAddDialog, setShowAddDialog] = useState(false)
     const [isRefreshingModels, setIsRefreshingModels] = useState(false)
+    const [availableModels, setAvailableModels] = useState<string[]>([])  // Models from API for selection
 
     const provider = providers.find((p) => p.id === selectedProviderId)
     const providerConfig = provider ? getProviderConfig(provider.provider_type) : undefined
@@ -91,15 +92,32 @@ export function ProviderDetail() {
         }
     }, [selectedProviderId, provider?.api_url])
 
-    // Convert models array to ModelItem with is_enabled flag (all enabled by default)
+    // Convert models to ModelItem: combine selected (provider.models) + available (from API)
+    // Selected models are enabled, available models are shown but disabled until user selects
     const modelItems: ModelItem[] = useMemo(() => {
         if (!provider) return []
-        return provider.models.map((modelId) => ({
+        const selectedSet = new Set(provider.models)
+
+        // Start with selected models (is_enabled = true)
+        const items: ModelItem[] = provider.models.map((modelId) => ({
             id: modelId,
             name: modelId,
-            is_enabled: true, // All fetched models are enabled
+            is_enabled: true,
         }))
-    }, [provider?.models])
+
+        // Add available models that are not selected (is_enabled = false)
+        for (const modelId of availableModels) {
+            if (!selectedSet.has(modelId)) {
+                items.push({
+                    id: modelId,
+                    name: modelId,
+                    is_enabled: false,
+                })
+            }
+        }
+
+        return items
+    }, [provider?.models, availableModels])
 
     // Filtered models for display
     const filteredModels = useMemo(() => {
@@ -141,10 +159,10 @@ export function ProviderDetail() {
         setIsTesting(false)
 
         if (result.success) {
-            showSuccessToast(result.message)
-            // Update models if available
+            showSuccessToast(`${result.message}，发现 ${result.available_models.length} 个模型`)
+            // Store available models for manual selection (don't auto-add to provider)
             if (result.available_models.length > 0) {
-                await updateProvider(provider.id, { models: result.available_models })
+                setAvailableModels(result.available_models)
             }
         } else {
             showErrorToast(result.message)
@@ -197,18 +215,21 @@ export function ProviderDetail() {
         setIsRefreshingModels(false)
 
         if (result.success && result.available_models.length > 0) {
-            // Merge new models with existing, keeping enabled state
-            const existingSet = new Set(provider.models)
-            const newModels = result.available_models.filter((m) => !existingSet.has(m))
-            if (newModels.length > 0) {
-                await updateProvider(provider.id, {
-                    models: [...provider.models, ...newModels]
-                })
-                showSuccessToast(`发现 ${newModels.length} 个新模型`)
-            } else {
-                showSuccessToast("模型列表已是最新")
-            }
+            // Store available models for manual selection (don't auto-add)
+            setAvailableModels(result.available_models)
+            showSuccessToast(`发现 ${result.available_models.length} 个模型`)
         }
+    }
+
+    const handleSelectAll = () => {
+        // Add all available models to provider's selected list
+        const allModels = [...new Set([...provider.models, ...availableModels])]
+        updateProvider(provider.id, { models: allModels })
+    }
+
+    const handleClearAll = () => {
+        // Clear all selected models
+        updateProvider(provider.id, { models: [] })
     }
 
     const handleAddCustomModel = async (model: CustomModelData) => {
@@ -407,6 +428,7 @@ export function ProviderDetail() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="搜索模型..."
                         className="h-8"
+                        autoComplete="off"
                     />
                 )}
 
@@ -519,6 +541,8 @@ export function ProviderDetail() {
                 onToggleModel={handleToggleModel}
                 onRefresh={handleRefreshModels}
                 isRefreshing={isRefreshingModels}
+                onSelectAll={handleSelectAll}
+                onClearAll={handleClearAll}
             />
 
             {/* Feature 4: Add Custom Model Dialog */}
