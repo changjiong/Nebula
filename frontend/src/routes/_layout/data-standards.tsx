@@ -37,7 +37,7 @@ const tableSchema = z.object({
 
 type TableFormValues = z.infer<typeof tableSchema>
 
-export const Route = createFileRoute("/_layout/admin/data-standards")({
+export const Route = createFileRoute("/_layout/data-standards")({
   component: DataStandardsPage,
 })
 

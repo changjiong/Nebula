@@ -18,12 +18,14 @@ import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutTasksRouteImport } from './routes/_layout/tasks'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutModelProvidersRouteImport } from './routes/_layout/model-providers'
+import { Route as LayoutDataStandardsRouteImport } from './routes/_layout/data-standards'
 import { Route as LayoutAgentsRouteImport } from './routes/_layout/agents'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutAdminIndexRouteImport } from './routes/_layout/admin/index'
+import { Route as LayoutDataStandardsIdRouteImport } from './routes/_layout/data-standards/$id'
 import { Route as LayoutAdminToolsRouteImport } from './routes/_layout/admin/tools'
 import { Route as LayoutAdminSkillsRouteImport } from './routes/_layout/admin/skills'
-import { Route as LayoutAdminDataStandardsRouteImport } from './routes/_layout/admin/data-standards'
+import { Route as LayoutAdminToolsIdRouteImport } from './routes/_layout/admin/tools/$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -69,6 +71,11 @@ const LayoutModelProvidersRoute = LayoutModelProvidersRouteImport.update({
   path: '/model-providers',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutDataStandardsRoute = LayoutDataStandardsRouteImport.update({
+  id: '/data-standards',
+  path: '/data-standards',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutAgentsRoute = LayoutAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
@@ -84,6 +91,11 @@ const LayoutAdminIndexRoute = LayoutAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
+const LayoutDataStandardsIdRoute = LayoutDataStandardsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LayoutDataStandardsRoute,
+} as any)
 const LayoutAdminToolsRoute = LayoutAdminToolsRouteImport.update({
   id: '/tools',
   path: '/tools',
@@ -94,12 +106,11 @@ const LayoutAdminSkillsRoute = LayoutAdminSkillsRouteImport.update({
   path: '/skills',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
-const LayoutAdminDataStandardsRoute =
-  LayoutAdminDataStandardsRouteImport.update({
-    id: '/data-standards',
-    path: '/data-standards',
-    getParentRoute: () => LayoutAdminRoute,
-  } as any)
+const LayoutAdminToolsIdRoute = LayoutAdminToolsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LayoutAdminToolsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
@@ -108,14 +119,16 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/admin': typeof LayoutAdminRouteWithChildren
   '/agents': typeof LayoutAgentsRoute
+  '/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
   '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
-  '/admin/data-standards': typeof LayoutAdminDataStandardsRoute
   '/admin/skills': typeof LayoutAdminSkillsRoute
-  '/admin/tools': typeof LayoutAdminToolsRoute
+  '/admin/tools': typeof LayoutAdminToolsRouteWithChildren
+  '/data-standards/$id': typeof LayoutDataStandardsIdRoute
   '/admin/': typeof LayoutAdminIndexRoute
+  '/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -123,14 +136,16 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/agents': typeof LayoutAgentsRoute
+  '/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/model-providers': typeof LayoutModelProvidersRoute
   '/settings': typeof LayoutSettingsRoute
   '/tasks': typeof LayoutTasksRoute
   '/': typeof LayoutIndexRoute
-  '/admin/data-standards': typeof LayoutAdminDataStandardsRoute
   '/admin/skills': typeof LayoutAdminSkillsRoute
-  '/admin/tools': typeof LayoutAdminToolsRoute
+  '/admin/tools': typeof LayoutAdminToolsRouteWithChildren
+  '/data-standards/$id': typeof LayoutDataStandardsIdRoute
   '/admin': typeof LayoutAdminIndexRoute
+  '/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,14 +156,16 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_layout/admin': typeof LayoutAdminRouteWithChildren
   '/_layout/agents': typeof LayoutAgentsRoute
+  '/_layout/data-standards': typeof LayoutDataStandardsRouteWithChildren
   '/_layout/model-providers': typeof LayoutModelProvidersRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/tasks': typeof LayoutTasksRoute
   '/_layout/': typeof LayoutIndexRoute
-  '/_layout/admin/data-standards': typeof LayoutAdminDataStandardsRoute
   '/_layout/admin/skills': typeof LayoutAdminSkillsRoute
-  '/_layout/admin/tools': typeof LayoutAdminToolsRoute
+  '/_layout/admin/tools': typeof LayoutAdminToolsRouteWithChildren
+  '/_layout/data-standards/$id': typeof LayoutDataStandardsIdRoute
   '/_layout/admin/': typeof LayoutAdminIndexRoute
+  '/_layout/admin/tools/$id': typeof LayoutAdminToolsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,14 +176,16 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin'
     | '/agents'
+    | '/data-standards'
     | '/model-providers'
     | '/settings'
     | '/tasks'
     | '/'
-    | '/admin/data-standards'
     | '/admin/skills'
     | '/admin/tools'
+    | '/data-standards/$id'
     | '/admin/'
+    | '/admin/tools/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -174,14 +193,16 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/agents'
+    | '/data-standards'
     | '/model-providers'
     | '/settings'
     | '/tasks'
     | '/'
-    | '/admin/data-standards'
     | '/admin/skills'
     | '/admin/tools'
+    | '/data-standards/$id'
     | '/admin'
+    | '/admin/tools/$id'
   id:
     | '__root__'
     | '/_layout'
@@ -191,14 +212,16 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_layout/admin'
     | '/_layout/agents'
+    | '/_layout/data-standards'
     | '/_layout/model-providers'
     | '/_layout/settings'
     | '/_layout/tasks'
     | '/_layout/'
-    | '/_layout/admin/data-standards'
     | '/_layout/admin/skills'
     | '/_layout/admin/tools'
+    | '/_layout/data-standards/$id'
     | '/_layout/admin/'
+    | '/_layout/admin/tools/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -274,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutModelProvidersRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/data-standards': {
+      id: '/_layout/data-standards'
+      path: '/data-standards'
+      fullPath: '/data-standards'
+      preLoaderRoute: typeof LayoutDataStandardsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/agents': {
       id: '/_layout/agents'
       path: '/agents'
@@ -295,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminIndexRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
+    '/_layout/data-standards/$id': {
+      id: '/_layout/data-standards/$id'
+      path: '/$id'
+      fullPath: '/data-standards/$id'
+      preLoaderRoute: typeof LayoutDataStandardsIdRouteImport
+      parentRoute: typeof LayoutDataStandardsRoute
+    }
     '/_layout/admin/tools': {
       id: '/_layout/admin/tools'
       path: '/tools'
@@ -309,27 +346,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminSkillsRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
-    '/_layout/admin/data-standards': {
-      id: '/_layout/admin/data-standards'
-      path: '/data-standards'
-      fullPath: '/admin/data-standards'
-      preLoaderRoute: typeof LayoutAdminDataStandardsRouteImport
-      parentRoute: typeof LayoutAdminRoute
+    '/_layout/admin/tools/$id': {
+      id: '/_layout/admin/tools/$id'
+      path: '/$id'
+      fullPath: '/admin/tools/$id'
+      preLoaderRoute: typeof LayoutAdminToolsIdRouteImport
+      parentRoute: typeof LayoutAdminToolsRoute
     }
   }
 }
 
+interface LayoutAdminToolsRouteChildren {
+  LayoutAdminToolsIdRoute: typeof LayoutAdminToolsIdRoute
+}
+
+const LayoutAdminToolsRouteChildren: LayoutAdminToolsRouteChildren = {
+  LayoutAdminToolsIdRoute: LayoutAdminToolsIdRoute,
+}
+
+const LayoutAdminToolsRouteWithChildren =
+  LayoutAdminToolsRoute._addFileChildren(LayoutAdminToolsRouteChildren)
+
 interface LayoutAdminRouteChildren {
-  LayoutAdminDataStandardsRoute: typeof LayoutAdminDataStandardsRoute
   LayoutAdminSkillsRoute: typeof LayoutAdminSkillsRoute
-  LayoutAdminToolsRoute: typeof LayoutAdminToolsRoute
+  LayoutAdminToolsRoute: typeof LayoutAdminToolsRouteWithChildren
   LayoutAdminIndexRoute: typeof LayoutAdminIndexRoute
 }
 
 const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
-  LayoutAdminDataStandardsRoute: LayoutAdminDataStandardsRoute,
   LayoutAdminSkillsRoute: LayoutAdminSkillsRoute,
-  LayoutAdminToolsRoute: LayoutAdminToolsRoute,
+  LayoutAdminToolsRoute: LayoutAdminToolsRouteWithChildren,
   LayoutAdminIndexRoute: LayoutAdminIndexRoute,
 }
 
@@ -337,9 +383,21 @@ const LayoutAdminRouteWithChildren = LayoutAdminRoute._addFileChildren(
   LayoutAdminRouteChildren,
 )
 
+interface LayoutDataStandardsRouteChildren {
+  LayoutDataStandardsIdRoute: typeof LayoutDataStandardsIdRoute
+}
+
+const LayoutDataStandardsRouteChildren: LayoutDataStandardsRouteChildren = {
+  LayoutDataStandardsIdRoute: LayoutDataStandardsIdRoute,
+}
+
+const LayoutDataStandardsRouteWithChildren =
+  LayoutDataStandardsRoute._addFileChildren(LayoutDataStandardsRouteChildren)
+
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRouteWithChildren
   LayoutAgentsRoute: typeof LayoutAgentsRoute
+  LayoutDataStandardsRoute: typeof LayoutDataStandardsRouteWithChildren
   LayoutModelProvidersRoute: typeof LayoutModelProvidersRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutTasksRoute: typeof LayoutTasksRoute
@@ -349,6 +407,7 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRouteWithChildren,
   LayoutAgentsRoute: LayoutAgentsRoute,
+  LayoutDataStandardsRoute: LayoutDataStandardsRouteWithChildren,
   LayoutModelProvidersRoute: LayoutModelProvidersRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutTasksRoute: LayoutTasksRoute,

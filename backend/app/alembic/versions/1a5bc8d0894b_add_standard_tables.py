@@ -1,8 +1,8 @@
 """Add standard tables
 
-Revision ID: 16f5984edee9
-Revises: d1ecf85e062b
-Create Date: 2026-01-16 12:13:07.848444
+Revision ID: 1a5bc8d0894b
+Revises: 743f4e823db3
+Create Date: 2026-01-16 12:47:50.887892
 
 """
 from alembic import op
@@ -11,8 +11,8 @@ import sqlmodel.sql.sqltypes
 
 
 # revision identifiers, used by Alembic.
-revision = '16f5984edee9'
-down_revision = 'd1ecf85e062b'
+revision = '1a5bc8d0894b'
+down_revision = '743f4e823db3'
 branch_labels = None
 depends_on = None
 

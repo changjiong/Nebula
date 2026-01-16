@@ -36,15 +36,7 @@ class StandardTable(SQLModel, table=True):
 
 # ============ Table Field ============
 
-class TableField(SQLModel, table=True):
-    """
-    Field definition for a StandardTable
-    """
-    __tablename__ = "table_field"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    table_id: uuid.UUID = Field(foreign_key="standard_table.id", index=True)
-    
+class TableFieldBase(SQLModel):
     name: str = Field(description="Field name (e.g. credit_code)")
     display_name: str = Field(max_length=200)
     data_type: str = Field(default="string", description="string, number, boolean, date, json, array")
@@ -58,22 +50,37 @@ class TableField(SQLModel, table=True):
         description="Sample values for understanding"
     )
 
+class TableField(TableFieldBase, table=True):
+    """
+    Field definition for a StandardTable
+    """
+    __tablename__ = "table_field"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    table_id: uuid.UUID = Field(foreign_key="standard_table.id", index=True)
+
     # Relationships
     table: StandardTable = Relationship(back_populates="fields")
     tool_mappings: list["ToolDataMapping"] = Relationship(back_populates="field")
 
 
+class TableFieldCreate(TableFieldBase):
+    table_id: uuid.UUID
+
+
+class TableFieldUpdate(SQLModel):
+    name: str | None = None
+    display_name: str | None = None
+    data_type: str | None = None
+    description: str | None = None
+    is_primary_key: bool | None = None
+    is_nullable: bool | None = None
+    sample_values: list[str] | None = None
+
+
 # ============ Tool Data Mapping ============
 
-class ToolDataMapping(SQLModel, table=True):
-    """
-    Mapping between Tool parameters (input/output) and StandardTable fields
-    This builds the lineage graph.
-    """
-    __tablename__ = "tool_data_mapping"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    
+class ToolDataMappingBase(SQLModel):
     tool_id: uuid.UUID = Field(foreign_key="tool.id", index=True)
     param_path: str = Field(description="JSON path to the parameter (e.g. input.credit_code)")
     param_direction: str = Field(description="input or output")
@@ -81,6 +88,20 @@ class ToolDataMapping(SQLModel, table=True):
     table_id: uuid.UUID = Field(foreign_key="standard_table.id", index=True)
     field_id: uuid.UUID = Field(foreign_key="table_field.id", index=True)
 
+
+class ToolDataMapping(ToolDataMappingBase, table=True):
+    """
+    Mapping between Tool parameters (input/output) and StandardTable fields
+    This builds the lineage graph.
+    """
+    __tablename__ = "tool_data_mapping"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+
     # Relationships
     table: StandardTable = Relationship(back_populates="tool_mappings")
     field: TableField = Relationship(back_populates="tool_mappings")
+
+
+class ToolDataMappingCreate(ToolDataMappingBase):
+    pass

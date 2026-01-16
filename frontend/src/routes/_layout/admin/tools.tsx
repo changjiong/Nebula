@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import {
   AlertCircle,
   CheckCircle2,
@@ -274,9 +274,16 @@ function ToolsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/tools/$id" params={{ id: tool.id }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Manage & Map
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem>
                           <Play className="mr-2 h-4 w-4" />
-                          测试
+                          Test Run
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
@@ -285,16 +292,12 @@ function ToolsPage() {
                           }}
                         >
                           <Search className="mr-2 h-4 w-4" />
-                          数据血缘
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          编辑
+                          View Graph
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive">
                           <Trash2 className="mr-2 h-4 w-4" />
-                          删除
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

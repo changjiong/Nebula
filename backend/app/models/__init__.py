@@ -48,7 +48,14 @@ from .tool import (
     ToolTestResult,
     ToolUpdate,
 )
-from .standard_table import StandardTable, TableField, ToolDataMapping
+from .standard_table import (
+    StandardTable,
+    TableField,
+    TableFieldCreate,
+    TableFieldUpdate,
+    ToolDataMapping,
+    ToolDataMappingCreate,
+)
 
 
 # Shared properties
@@ -201,5 +208,8 @@ __all__ = [
     # Standard Table (NEW)
     "StandardTable",
     "TableField",
+    "TableFieldCreate",
+    "TableFieldUpdate",
     "ToolDataMapping",
+    "ToolDataMappingCreate",
 ]

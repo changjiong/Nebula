@@ -108,45 +108,42 @@ def initialize_preset_providers(
     current_user: CurrentUser,
 ) -> Any:
     """为用户初始化预置服务商（仅首次使用时调用）。"""
-    # Check if user already has providers
-    existing_count = session.exec(
-        select(func.count())
-        .select_from(ModelProvider)
-        .where(ModelProvider.owner_id == current_user.id)
-    ).one()
-
-    if existing_count > 0:
-        # User already has providers, just return them
-        statement = select(ModelProvider).where(ModelProvider.owner_id == current_user.id)
-        providers = session.exec(statement).all()
-        return ModelProvidersPublic(
-            data=[_provider_to_public(p) for p in providers],
-            count=existing_count,
-        )
-
-    # Create preset providers for the user
+    # Get existing providers to prevent duplicates
+    existing_providers = session.exec(
+        select(ModelProvider).where(ModelProvider.owner_id == current_user.id)
+    ).all()
+    existing_names = {p.name for p in existing_providers}
+    
+    # Create preset providers if they don't exist
     created_providers = []
     for preset in PRESET_PROVIDERS:
-        provider = ModelProvider(
-            name=preset["name"],
-            provider_type=preset["provider_type"],
-            api_url=preset["api_url"],
-            api_key="",  # User needs to fill in
-            is_enabled=False,  # Disabled by default until configured
-            icon=preset["icon"],
-            models=preset["default_models"],
-            owner_id=current_user.id,
-        )
-        session.add(provider)
-        created_providers.append(provider)
+        if preset["name"] not in existing_names:
+            provider = ModelProvider(
+                name=preset["name"],
+                provider_type=preset["provider_type"],
+                api_url=preset["api_url"],
+                api_key="",  # User needs to fill in
+                is_enabled=False,  # Disabled by default until configured
+                icon=preset["icon"],
+                models=preset["default_models"],
+                owner_id=current_user.id,
+            )
+            session.add(provider)
+            created_providers.append(provider)
 
-    session.commit()
-    for p in created_providers:
-        session.refresh(p)
+    if created_providers:
+        session.commit()
+        for p in created_providers:
+            session.refresh(p)
+
+    # Return all providers (existing + newly created)
+    all_providers = existing_providers + created_providers
+    # Sort by created_at
+    all_providers.sort(key=lambda x: x.created_at)
 
     return ModelProvidersPublic(
-        data=[_provider_to_public(p) for p in created_providers],
-        count=len(created_providers),
+        data=[_provider_to_public(p) for p in all_providers],
+        count=len(all_providers),
     )
 
 

@@ -9,7 +9,10 @@ from app.api.deps import SessionDep, CurrentUser
 from app.models import (
     StandardTable,
     TableField,
+    TableFieldCreate,
+    TableFieldUpdate,
     ToolDataMapping,
+    ToolDataMappingCreate,
     Tool
 )
 from app.models.standard_table import StandardTable
@@ -114,6 +117,113 @@ def delete_standard_table(
         raise HTTPException(status_code=404, detail="Standard table not found")
         
     session.delete(table)
+    session.commit()
+    return {"ok": True}
+
+
+# ============ Table Field CRUD ============
+
+@router.post("/standard-tables/fields", response_model=TableField)
+def create_table_field(
+    field_in: TableFieldCreate,
+    session: SessionDep,
+    current_user: CurrentUser
+) -> Any:
+    """
+    Add a field to a standard table.
+    """
+    table = session.get(StandardTable, field_in.table_id)
+    if not table:
+        raise HTTPException(status_code=404, detail="Standard table not found")
+        
+    field = TableField.model_validate(field_in)
+    session.add(field)
+    session.commit()
+    session.refresh(field)
+    return field
+
+
+@router.put("/standard-tables/fields/{id}", response_model=TableField)
+def update_table_field(
+    id: uuid.UUID,
+    field_in: TableFieldUpdate,
+    session: SessionDep,
+    current_user: CurrentUser
+) -> Any:
+    """
+    Update a standard table field.
+    """
+    field = session.get(TableField, id)
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+        
+    field_data = field_in.model_dump(exclude_unset=True)
+    field.sqlmodel_update(field_data)
+    
+    session.add(field)
+    session.commit()
+    session.refresh(field)
+    return field
+
+
+@router.delete("/standard-tables/fields/{id}")
+def delete_table_field(
+    id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser
+) -> Any:
+    """
+    Delete a standard table field.
+    """
+    field = session.get(TableField, id)
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+        
+    session.delete(field)
+    session.commit()
+    return {"ok": True}
+
+
+# ============ Tool Data Mapping CRUD ============
+
+@router.post("/tools/mappings", response_model=ToolDataMapping)
+def create_tool_mapping(
+    mapping_in: ToolDataMappingCreate,
+    session: SessionDep,
+    current_user: CurrentUser
+) -> Any:
+    """
+    Create a mapping between tool parameter and standard table field.
+    """
+    # Verify references
+    if not session.get(Tool, mapping_in.tool_id):
+        raise HTTPException(status_code=404, detail="Tool not found")
+    if not session.get(StandardTable, mapping_in.table_id):
+        raise HTTPException(status_code=404, detail="Standard table not found")
+    if not session.get(TableField, mapping_in.field_id):
+        raise HTTPException(status_code=404, detail="Table field not found")
+        
+    mapping = ToolDataMapping.model_validate(mapping_in)
+    session.add(mapping)
+    session.commit()
+    session.refresh(mapping)
+    return mapping
+
+
+@router.delete("/tools/mappings/{id}")
+def delete_tool_mapping(
+    id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser
+) -> Any:
+    """
+    Delete a tool data mapping.
+    """
+    mapping = session.get(ToolDataMapping, id)
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+        
+    session.delete(mapping)
     session.commit()
     return {"ok": True}
 
