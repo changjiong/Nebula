@@ -1,6 +1,6 @@
 import { Bot } from "lucide-react"
 import { useEffect, useRef } from "react"
-import ReactMarkdown from "react-markdown"
+import { MarkdownRenderer } from "./MarkdownRenderer"
 import { useChatStore } from "@/stores/chatStore"
 import { ContentCanvas } from "../Timeline/ContentCanvas"
 import { ThinkingMessage } from "./ThinkingMessage"
@@ -93,18 +93,8 @@ export function MessageList() {
                       </span>
                     </div>
                     {/* Markdown Body */}
-                    <div
-                      className="prose prose-neutral dark:prose-invert prose-sm max-w-none
-                      prose-p:my-2 prose-p:leading-relaxed
-                      prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold
-                      prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
-                      prose-pre:my-3 prose-pre:bg-muted prose-pre:rounded-lg
-                      prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-                      prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground
-                      prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                    "
-                    >
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <div className="min-w-0">
+                      <MarkdownRenderer content={message.content} />
                     </div>
                   </div>
                 </div>

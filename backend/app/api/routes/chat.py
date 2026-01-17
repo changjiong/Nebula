@@ -379,6 +379,98 @@ async def nfc_stream_generator(
                 # Handle standard graph events
                 event = item["payload"]
                 
+                if "plan" in event:
+                    data = event["plan"]
+                    if "planning_data" in data and data["planning_data"]:
+                        plan_data = data["planning_data"]
+                        
+                        reasoning = plan_data.get("reasoning", "")
+                        steps = plan_data.get("steps", [])
+                        
+                        content = ""
+                        if reasoning:
+                            content += f"**Perception:**\n{reasoning}\n\n"
+                        if steps:
+                            content += "**Plan:**\n"
+                            for i, step in enumerate(steps):
+                                content += f"{i+1}. {step}\n"
+                        
+                        # Use the existing thinking step (initial or current) if available
+                        target_id = current_think_id or initial_think_id
+                        
+                        if target_id:
+                             # Update the existing placeholder
+                             # If we streamed some reasoning already (R1), we might append or just leave it.
+                             # If it was empty (V3), this 'reasoning' from JSON fills it.
+                             
+                             # If we have streamed content, maybe append the plan?
+                             # Or if text is empty, fill it.
+                             if target_id in steps_map:
+                                 current_content = steps_map[target_id].get("content", "")
+                                 if not current_content.strip():
+                                     # It was empty (Zombie), fill it with the plan reasoning
+                                     # We stick the whole plan content here? 
+                                     # The user wants "Thinking Process". 
+                                     # Let's put the reasoning here.
+                                     steps_map[target_id]["content"] = content
+                                     steps_map[target_id]["status"] = "completed"
+                                     
+                                     sse_data = {
+                                        "id": target_id,
+                                        "title": "思考过程",
+                                        "status": "completed",
+                                        "content": content,
+                                        "group": "分析与推理"
+                                     }
+                                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                                     
+                                     # Reset current_think_id so we don't try to close it again later
+                                     current_think_id = None
+                                 else:
+                                     # It had content (R1 streamed thoughts). 
+                                     # We should probably just complete it.
+                                     # And maybe let the Plan be its own step if separate?
+                                     # But for now, let's just mark it complete.
+                                     sse_data = {
+                                        "id": target_id,
+                                        "title": "思考过程",
+                                        "status": "completed",
+                                        "content": current_content, # Keep existing streamed thoughts
+                                        "group": "分析与推理"
+                                     }
+                                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                                     current_think_id = None
+                                     
+                                     # If we have a Plan (steps) and it wasn't shown in the thoughts, 
+                                     # maybe we still want to show the specific Plan step?
+                                     # Let's optionally create a Plan step if R1 was used?
+                                     # Actually, unifying is safer.
+                        else:
+                            # creating a dedicated Planning step
+                            plan_id = f"plan-{uuid.uuid4()}"
+                            
+                            # Log to history
+                            step_entry = {
+                                "id": plan_id,
+                                "title": "Agent Perception & Planning",
+                                "status": "completed",
+                                "content": content,
+                                "timestamp": int(datetime.now().timestamp() * 1000),
+                                "group": "规划与决策"
+                            }
+                            thinking_steps_log.append(step_entry)
+                            steps_map[plan_id] = step_entry
+                            
+                            # Emit SSE
+                            sse_data = {
+                                "id": plan_id,
+                                "title": "Agent Perception & Planning",
+                                "status": "completed",
+                                "content": content,
+                                "group": "规划与决策"
+                            }
+                            yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+
                 if "think" in event:
                     data = event["think"]
                     # If tool calls are pending

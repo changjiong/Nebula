@@ -25,6 +25,8 @@ from app.llm.base import (
     ToolCall,
     ToolDefinition,
 )
+from app.engine.planner import LLMPlanner
+
 
 
 class NFCAgentState(TypedDict, total=False):
@@ -71,9 +73,45 @@ class NFCAgentState(TypedDict, total=False):
     # Status
     status: str  # "thinking", "tool_calling", "responding", "done", "error"
     error: str | None
-
+    
+    # Planning data (Perception/Intent/Steps)
+    planning_data: dict[str, Any] | None
 
 # ============ Node Functions ============
+
+async def plan_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any]:
+    """
+    Planning node: Analyze intent and create a plan before execution.
+    """
+    # Only plan on the first iteration
+    if state.get("iteration", 0) > 0:
+        return {}
+        
+    planner = LLMPlanner(gateway)
+    message = state.get("input", "")
+    context = state.get("messages", [])
+    model = state.get("model", "deepseek-chat")
+    
+    # Execute planning
+    # We might want to pass available tools to the planner implicitly or explicitly if needed
+    # For now, general planning is fine.
+    try:
+        decision = await planner.plan(message, context, model=model)
+        
+        return {
+            "planning_data": {
+                "intent": decision.intent.type.value,
+                "confidence": decision.intent.confidence,
+                "reasoning": decision.intent.metadata.get("reasoning", ""),
+                "steps": decision.intent.metadata.get("plan_steps", []),
+                "entities": decision.params.to_dict()
+            },
+            "status": "thinking"
+        }
+    except Exception as e:
+        print(f"Planning failed: {e}")
+        return {"planning_data": {"error": str(e)}}
+
 
 async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any]:
     """
@@ -103,8 +141,27 @@ async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any
 
     # Add current input if this is the first iteration
     if state.get("iteration", 0) == 0:
-        llm_messages.append(Message(role=MessageRole.USER, content=state.get("input", "")))
-
+        content = state.get("input", "")
+        
+        # Inject Plan if available
+        planning_data = state.get("planning_data")
+        if planning_data:
+            steps = planning_data.get("steps", [])
+            reasoning = planning_data.get("reasoning", "")
+            if steps or reasoning:
+                plan_text = "\n\nI have analyzed your request and created a plan:\n"
+                if reasoning:
+                    plan_text += f"Perception: {reasoning}\n"
+                if steps:
+                    plan_text += "Plan:\n"
+                    for i, step in enumerate(steps):
+                        plan_text += f"{i+1}. {step}\n"
+                plan_text += "\nI will now proceed with executing this plan using the available tools."
+                
+                content += plan_text
+                
+        llm_messages.append(Message(role=MessageRole.USER, content=content))
+    
     # Call LLM with tools
     config = LLMConfig(
         model=model,
@@ -265,14 +322,21 @@ def create_nfc_graph(gateway: LLMGateway) -> StateGraph:
     async def think(state: NFCAgentState) -> dict[str, Any]:
         return await think_node(state, gateway)
 
+    async def plan(state: NFCAgentState) -> dict[str, Any]:
+        return await plan_node(state, gateway)
+
     # Add nodes
+    graph.add_node("plan", plan)
     graph.add_node("think", think)
     graph.add_node("execute_tools", execute_tools_node)
     graph.add_node("respond", respond_node)
     graph.add_node("error", error_node)
 
     # Add edges
-    graph.add_edge(START, "think")
+    # START -> plan -> think
+    graph.add_edge(START, "plan")
+    graph.add_edge("plan", "think")
+
 
     # Conditional routing after thinking
     graph.add_conditional_edges(
@@ -363,7 +427,9 @@ async def run_nfc_agent(
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",
+        "status": "thinking",
         "error": None,
+        "planning_data": None,
     }
 
     result = await graph.ainvoke(initial_state)
@@ -404,7 +470,9 @@ async def stream_nfc_agent(
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",
+        "status": "thinking",
         "error": None,
+        "planning_data": None,
     }
 
     async for event in graph.astream(initial_state):

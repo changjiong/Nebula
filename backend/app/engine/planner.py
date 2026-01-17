@@ -12,6 +12,10 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 
+from app.llm import LLMGateway
+from app.llm.base import LLMConfig, Message, MessageRole
+import json
+
 
 class IntentType(str, Enum):
     """Supported intent types for agent routing."""
@@ -347,5 +351,127 @@ class Planner:
         }
 
 
+class LLMPlanner(Planner):
+    """
+    LLM-based planner that uses an LLM to perceive intent and plan steps.
+    """
+
+    def __init__(self, gateway: LLMGateway) -> None:
+        self.gateway = gateway
+        # Initialize default components as fallback
+        super().__init__()
+
+    async def plan(
+        self,
+        message: str,
+        context: list[BaseMessage] | None = None,
+        model: str = "deepseek-chat",
+    ) -> RoutingDecision:
+        """
+        Execute planning using LLM.
+        """
+        # specialized prompt for planning
+        prompt = f"""You are an advanced AI agent planner.
+Your goal is to Perceive the user's request, Understand their intent, and Plan the steps to fulfill it.
+
+User Request: {message}
+
+Analyze the request and output a VALID JSON object with the following structure:
+{{
+  "intent": "query" | "analysis" | "prediction" | "workflow" | "conversation" | "unknown",
+  "confidence": 0.0-1.0,
+  "reasoning": "Explain your perception of the user's need. Why this intent? What is the user trying to achieve? What is the context?",
+  "plan_steps": [
+    "Step 1: ...",
+    "Step 2: ..."
+  ],
+  "entities": {{
+    "key": "value"
+  }}
+}}
+
+Be explicit in your reasoning.
+- For simple greetings (e.g., "Hello"), the plan should be to respond politely.
+- For complex requests, break them down into logical steps that might involve tool calls.
+- "reasoning" is your PERCEPTION phase.
+- "plan_steps" is your PLANNING phase.
+"""
+        
+        try:
+             # Check for active stream context
+             from app.llm.stream_context import stream_context_var
+             ctx = stream_context_var.get()
+             
+             content = ""
+             
+             if ctx:
+                 # Stream mode: Forward reasoning, accumulate content
+                 async for chunk in self.gateway.chat_stream(
+                    messages=[Message(role=MessageRole.USER, content=prompt)],
+                    config=LLMConfig(
+                        model=model, # Use dynamic model
+                        temperature=0.0,
+                    )
+                 ):
+                     # Forward reasoning chunks to the global stream queue
+                     # This makes the "Thinking Process" visible to the user immediately
+                     if chunk.reasoning_content:
+                         await ctx.queue.put(chunk)
+                     
+                     # Accumulate content (JSON) but DO NOT forward it
+                     # We want to hide the raw JSON plan from the user
+                     if chunk.content:
+                         content += chunk.content
+             else:
+                 # Sync mode (fallback or no stream)
+                 response = await self.gateway.chat(
+                    messages=[Message(role=MessageRole.USER, content=prompt)],
+                    config=LLMConfig(
+                        model=model, # Use dynamic model
+                        temperature=0.0,
+                        # response_format={"type": "json_object"} # Not supported by base config yet
+                    )
+                )
+                 content = response.content
+             
+             # clean markdown codes if any
+             content = content.replace("```json", "").replace("```", "").strip()
+             
+             data = json.loads(content)
+             
+             intent_str = data.get("intent", "conversation").upper()
+             try:
+                 intent_type = IntentType(intent_str.lower())
+             except ValueError:
+                 intent_type = IntentType.CONVERSATION
+                 
+             intent = Intent(
+                 type=intent_type,
+                 confidence=data.get("confidence", 0.5),
+                 description=data.get("reasoning", ""),
+                 metadata={
+                     "plan_steps": data.get("plan_steps", []),
+                     "reasoning": data.get("reasoning", "")
+                 }
+             )
+             
+             params = ExtractedParams(
+                 entities=data.get("entities", {}),
+                 raw_text=message
+             )
+             
+             # Use router logic to pick agent based on intent
+             decision = self.router.route(intent, params)
+             return decision
+             
+        except Exception as e:
+            print(f"LLM Planning failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to rule-based
+            return await super().plan(message, context)
+
+
 # Default planner instance
 default_planner = Planner()
+

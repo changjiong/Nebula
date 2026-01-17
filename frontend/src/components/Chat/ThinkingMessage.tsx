@@ -145,8 +145,8 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
     if (isThinking) {
       if (!isOpen) setIsOpen(true)
     } else {
-      // When thinking finishes, collapse it by default
-      if (isOpen) setIsOpen(false)
+      // When thinking finishes, keep it open or let user decide
+      // if (isOpen) setIsOpen(false) 
     }
   }, [isThinking])
 
