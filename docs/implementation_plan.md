@@ -1921,7 +1921,7 @@ class ToolResult(BaseModel):
     base64_image: Optional[str] = None  # 支持图片输出
 ```
 
-**Talos 采纳**: 扩展 `Tool` 模型添加 `to_function_calling_param()` 方法
+**Nebula 采纳**: 扩展 `Tool` 模型添加 `to_function_calling_param()` 方法
 
 #### 16.2.2 Agent 状态机 (OpenManus)
 
@@ -1943,7 +1943,7 @@ class BaseAgent:
                 self.handle_stuck_state()
 ```
 
-**Talos 采纳**: 引入状态机管理和 `is_stuck()` 检测
+**Nebula 采纳**: 引入状态机管理和 `is_stuck()` 检测
 
 #### 16.2.3 MCP Server 集成 (JoyAgent)
 
@@ -1954,13 +1954,13 @@ mcp_server_url: "http://ip1:port1/sse,http://ip2:port2/sse"
 
 #### 16.2.4 前端依赖参考 (JoyAgent)
 
-| 功能 | 依赖 | Talos 现状 | 建议 |
+| 功能 | 依赖 | Nebula 现状 | 建议 |
 |------|------|-----------|------|
 | 图表 | ECharts | 未实现 | **Phase 6 引入** |
 | 流程图 | Mermaid | 未实现 | 可选 |
 | 沙箱渲染 | react-frame-component | 无 | Canvas HTML 报告 |
 
-### 16.3 Talos 融合计划
+### 16.3 Nebula 融合计划
 
 #### Tool 模型扩展
 
