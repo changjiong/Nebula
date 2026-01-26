@@ -194,7 +194,7 @@ alembic revision --autogenerate -m "描述信息"
 alembic upgrade head
 
 # 运行测试
-bash scripts/test.sh
+docker compose exec backend bash scripts/tests-start.sh
 ```
 
 ### 前端开发
