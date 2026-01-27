@@ -364,17 +364,46 @@ class LLMPlanner(Planner):
     async def plan(
         self,
         message: str,
-        context: list[BaseMessage] | None = None,
+        context: list[BaseMessage] | list[dict] | None = None,
         model: str = "deepseek-chat",
     ) -> RoutingDecision:
         """
         Execute planning using LLM.
         """
+        # Include prior conversation context (if any) to reduce ambiguity on follow-ups.
+        context_text = ""
+        if context:
+            try:
+                # state["messages"] in this project is often a list[dict]
+                if isinstance(context[0], dict):  # type: ignore[index]
+                    items = []
+                    for msg in context[-12:]:  # keep context small
+                        role = str(msg.get("role", "user"))
+                        content = str(msg.get("content", "")).strip()
+                        if not content:
+                            continue
+                        items.append(f"{role}: {content}")
+                    if items:
+                        context_text = "\n\nConversation Context:\n" + "\n".join(items)
+                else:
+                    # Fallback: BaseMessage-like objects (LangChain)
+                    items = []
+                    for msg in context[-12:]:  # type: ignore[index]
+                        role = getattr(msg, "type", None) or getattr(msg, "role", "user")
+                        content = getattr(msg, "content", "")
+                        if isinstance(content, str) and content.strip():
+                            items.append(f"{role}: {content.strip()}")
+                    if items:
+                        context_text = "\n\nConversation Context:\n" + "\n".join(items)
+            except Exception:
+                # If context formatting fails, silently ignore (planning can proceed without it).
+                context_text = ""
+
         # specialized prompt for planning
         prompt = f"""You are an advanced AI agent planner.
 Your goal is to Perceive the user's request, Understand their intent, and Plan the steps to fulfill it.
 
-User Request: {message}
+User Request: {message}{context_text}
 
 Analyze the request and output a VALID JSON object with the following structure:
 {{
@@ -474,4 +503,3 @@ Be explicit in your reasoning.
 
 # Default planner instance
 default_planner = Planner()
-

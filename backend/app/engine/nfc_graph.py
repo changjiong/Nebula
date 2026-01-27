@@ -141,26 +141,7 @@ async def think_node(state: NFCAgentState, gateway: LLMGateway) -> dict[str, Any
 
     # Add current input if this is the first iteration
     if state.get("iteration", 0) == 0:
-        content = state.get("input", "")
-        
-        # Inject Plan if available
-        planning_data = state.get("planning_data")
-        if planning_data:
-            steps = planning_data.get("steps", [])
-            reasoning = planning_data.get("reasoning", "")
-            if steps or reasoning:
-                plan_text = "\n\nI have analyzed your request and created a plan:\n"
-                if reasoning:
-                    plan_text += f"Perception: {reasoning}\n"
-                if steps:
-                    plan_text += "Plan:\n"
-                    for i, step in enumerate(steps):
-                        plan_text += f"{i+1}. {step}\n"
-                plan_text += "\nI will now proceed with executing this plan using the available tools."
-                
-                content += plan_text
-                
-        llm_messages.append(Message(role=MessageRole.USER, content=content))
+        llm_messages.append(Message(role=MessageRole.USER, content=state.get("input", "")))
     
     # Call LLM with tools
     config = LLMConfig(
