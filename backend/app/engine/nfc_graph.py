@@ -71,11 +71,15 @@ class NFCAgentState(TypedDict, total=False):
     max_iterations: int
 
     # Status
-    status: str  # "thinking", "tool_calling", "responding", "done", "error"
+    status: str  # "thinking", "tool_calling", "validating", "responding", "done", "error"
     error: str | None
     
     # Planning data (Perception/Intent/Steps)
     planning_data: dict[str, Any] | None
+    
+    # Validation data (from validator layer)
+    validation_status: str | None  # "passed", "failed", "warning"
+    validation_issues: list[dict[str, Any]]
 
 # ============ Node Functions ============
 
@@ -231,7 +235,57 @@ async def execute_tools_node(state: NFCAgentState) -> dict[str, Any]:
         "tool_results": results,
         "messages": result_messages,
         "pending_tool_calls": [],
-        "status": "thinking",
+        "status": "validating",
+    }
+
+
+async def validate_node(state: NFCAgentState) -> dict[str, Any]:
+    """
+    Validate tool execution results.
+    
+    Checks for:
+    - Result structure and completeness
+    - Sensitive data exposure
+    - Compliance with data policies
+    
+    Sanitizes sensitive data in results.
+    """
+    from app.engine.validator import default_validator
+    
+    tool_results = state.get("tool_results", [])
+    validation_issues: list[dict[str, Any]] = []
+    overall_status = "passed"
+    
+    for result in tool_results:
+        if not result.get("success"):
+            continue
+            
+        # Validate and sanitize each successful result
+        result_data = result.get("result", {})
+        if isinstance(result_data, dict):
+            validated = await default_validator.validate({
+                "execution_result": result_data
+            })
+            
+            # Collect issues
+            issues = validated.get("validation_issues", [])
+            if issues:
+                validation_issues.extend(issues)
+                
+            # Update overall status
+            if validated.get("validation_status") == "failed":
+                overall_status = "failed"
+            elif validated.get("validation_status") == "warning" and overall_status == "passed":
+                overall_status = "warning"
+                
+            # Use sanitized output
+            result["result"] = validated.get("validated_output", result_data)
+    
+    return {
+        "tool_results": tool_results,
+        "validation_status": overall_status,
+        "validation_issues": validation_issues,
+        "status": "thinking",  # Continue to thinking after validation
     }
 
 
@@ -273,9 +327,17 @@ def should_continue(state: NFCAgentState) -> Literal["execute_tools", "respond",
         return "respond"
 
 
-def after_tool_execution(state: NFCAgentState) -> Literal["think", "respond"]:
+def after_tool_execution(state: NFCAgentState) -> Literal["validate"]:
     """
     Determine next step after tool execution.
+    Always go to validation first.
+    """
+    return "validate"
+
+
+def after_validation(state: NFCAgentState) -> Literal["think", "respond"]:
+    """
+    Determine next step after validation.
     """
     iteration = state.get("iteration", 0)
     max_iterations = state.get("max_iterations", 10)
@@ -310,6 +372,7 @@ def create_nfc_graph(gateway: LLMGateway) -> StateGraph:
     graph.add_node("plan", plan)
     graph.add_node("think", think)
     graph.add_node("execute_tools", execute_tools_node)
+    graph.add_node("validate", validate_node)
     graph.add_node("respond", respond_node)
     graph.add_node("error", error_node)
 
@@ -330,10 +393,19 @@ def create_nfc_graph(gateway: LLMGateway) -> StateGraph:
         },
     )
 
-    # After tool execution, go back to thinking
+    # After tool execution, go to validation
     graph.add_conditional_edges(
         "execute_tools",
         after_tool_execution,
+        {
+            "validate": "validate",
+        },
+    )
+    
+    # After validation, go back to thinking or respond
+    graph.add_conditional_edges(
+        "validate",
+        after_validation,
         {
             "think": "think",
             "respond": "respond",
