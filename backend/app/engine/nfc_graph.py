@@ -372,6 +372,8 @@ async def run_nfc_agent(
     provider_id: str | None = None,
     tools: list[ToolDefinition] | None = None,
     session: Session | None = None,
+    thread_id: str | None = None,
+    use_checkpointer: bool = False,
     **kwargs: Any,
 ) -> dict[str, Any]:
     """
@@ -384,13 +386,22 @@ async def run_nfc_agent(
         model: LLM model to use
         tools: Available tool definitions
         session: Database session for gateway
+        thread_id: Thread ID for checkpointer (enables state persistence)
+        use_checkpointer: Whether to enable state persistence
         **kwargs: Additional configuration
 
     Returns:
         Final state with response
     """
     gateway = LLMGateway(session=session, user_id=uuid.UUID(user_id) if user_id else None)
-    graph = compile_nfc_graph(gateway)
+    
+    # Get checkpointer if enabled
+    checkpointer = None
+    if use_checkpointer:
+        from app.engine.checkpointer import get_checkpointer
+        checkpointer = await get_checkpointer()
+    
+    graph = compile_nfc_graph(gateway, checkpointer=checkpointer)
 
     initial_state: NFCAgentState = {
         "input": input_text,
@@ -408,12 +419,16 @@ async def run_nfc_agent(
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",
-        "status": "thinking",
         "error": None,
         "planning_data": None,
     }
 
-    result = await graph.ainvoke(initial_state)
+    # Build config with thread_id for checkpointer
+    config = {}
+    if thread_id or use_checkpointer:
+        config["configurable"] = {"thread_id": thread_id or session_id}
+
+    result = await graph.ainvoke(initial_state, config=config if config else None)
     return result
 
 
@@ -425,15 +440,35 @@ async def stream_nfc_agent(
     provider_id: str | None = None,
     tools: list[ToolDefinition] | None = None,
     session: Session | None = None,
+    thread_id: str | None = None,
+    use_checkpointer: bool = False,
     **kwargs: Any,
 ) -> AsyncIterator[dict[str, Any]]:
     """
     Stream the NFC agent execution with real-time updates.
 
     Yields state updates as the graph progresses through nodes.
+    
+    Args:
+        input_text: User input message
+        session_id: Session identifier
+        user_id: Optional user identifier
+        model: LLM model to use
+        tools: Available tool definitions
+        session: Database session for gateway
+        thread_id: Thread ID for checkpointer (enables state persistence)
+        use_checkpointer: Whether to enable state persistence
+        **kwargs: Additional configuration
     """
     gateway = LLMGateway(session=session, user_id=uuid.UUID(user_id) if user_id else None)
-    graph = compile_nfc_graph(gateway)
+    
+    # Get checkpointer if enabled
+    checkpointer = None
+    if use_checkpointer:
+        from app.engine.checkpointer import get_checkpointer
+        checkpointer = await get_checkpointer()
+    
+    graph = compile_nfc_graph(gateway, checkpointer=checkpointer)
 
     initial_state: NFCAgentState = {
         "input": input_text,
@@ -451,10 +486,14 @@ async def stream_nfc_agent(
         "iteration": 0,
         "max_iterations": kwargs.get("max_iterations", 10),
         "status": "thinking",
-        "status": "thinking",
         "error": None,
         "planning_data": None,
     }
 
-    async for event in graph.astream(initial_state):
+    # Build config with thread_id for checkpointer
+    config = {}
+    if thread_id or use_checkpointer:
+        config["configurable"] = {"thread_id": thread_id or session_id}
+
+    async for event in graph.astream(initial_state, config=config if config else None):
         yield event

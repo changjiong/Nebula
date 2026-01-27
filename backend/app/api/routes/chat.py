@@ -375,6 +375,8 @@ async def nfc_stream_generator(
                 session=db_session,
                 provider_id=provider_id,
                 messages=conversation_messages,
+                thread_id=str(conversation_id) if conversation_id else None,
+                use_checkpointer=True,
             ):
                 await queue.put({"type": "graph_event", "payload": event})
         except Exception as e:
@@ -978,4 +980,9 @@ def stream_chat(
             conversation_id=conversation_id,
         ),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Disable proxy buffering (notably Nginx) so SSE arrives incrementally.
+            "X-Accel-Buffering": "no",
+        },
     )
