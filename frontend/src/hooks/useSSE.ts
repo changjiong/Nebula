@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { useChatStore } from "@/stores/chatStore"
+import type { ThinkingStep } from "@/stores/chatStore"
 
 export function useSSE() {
   const [isStreaming, setIsStreaming] = useState(false)
@@ -148,28 +149,40 @@ export function useSSE() {
                 case "thinking":
                   // 思考过程 (Chain of Thought)
                   // thinking event data: { id, title, status, content, accumulated, group }
-                  if (
-                    eventData.status === "in-progress" &&
-                    !eventData.content
-                  ) {
-                    // Initial thinking step
-                    addThinkingStep({
-                      id: eventData.id || `think-${Date.now()}`,
-                      title: eventData.title || "思考过程",
-                      status: "in-progress",
-                      content: "",
-                      timestamp: Date.now(),
-                      group: eventData.group || "分析与推理",
-                    })
-                  } else {
-                    // Update with content or status change
-                    updateThinkingStep(eventData.id, {
-                      status: eventData.status,
-                      // Use accumulated if available for full content, otherwise use delta
-                      content: eventData.accumulated || eventData.content,
-                      title: eventData.title,
-                      group: eventData.group,
-                    })
+                  {
+                    const raw = eventData as any
+                    const stepId: string = raw?.id || `think-${Date.now()}`
+                    const status: ThinkingStep["status"] =
+                      raw?.status || "in-progress"
+                    const title = raw?.title || "思考过程"
+                    const content = raw?.accumulated ?? raw?.content ?? ""
+                    const group = raw?.group
+
+                    const hasExisting = useChatStore
+                      .getState()
+                      .thinkingSteps.some((s) => s.id === stepId)
+
+                    if (!hasExisting) {
+                      addThinkingStep({
+                        id: stepId,
+                        title,
+                        status,
+                        content: typeof content === "string" ? content : String(content),
+                        timestamp: Date.now(),
+                        ...(typeof group === "string" && group
+                          ? { group }
+                          : { group: "分析与推理" }),
+                      })
+                    } else {
+                      const updates: Partial<ThinkingStep> = {
+                        status,
+                        content:
+                          typeof content === "string" ? content : String(content),
+                      }
+                      if (typeof title === "string" && title) updates.title = title
+                      if (typeof group === "string" && group) updates.group = group
+                      updateThinkingStep(stepId, updates)
+                    }
                   }
                   break
 
