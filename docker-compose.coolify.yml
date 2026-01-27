@@ -115,7 +115,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://api.${DOMAIN:-localhost}}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
         NODE_ENV: production
     expose:
       - "80"
