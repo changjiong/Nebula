@@ -33,13 +33,13 @@ export interface Conversation {
 export interface StepSubItem {
   id: string
   type:
-  | "search-result"
-  | "file-operation"
-  | "api-call"
-  | "text"
-  | "browse"
-  | "mcp-call"
-  | "code-execution"
+    | "search-result"
+    | "file-operation"
+    | "api-call"
+    | "text"
+    | "browse"
+    | "mcp-call"
+    | "code-execution"
   title: string
   icon?: string // 图标URL或icon名称
   source?: string // 来源域名（搜索结果用）
@@ -120,7 +120,6 @@ interface ChatState {
  * Helper to convert server MessagePublic to local Message
  */
 function serverMessageToLocal(msg: MessagePublic): Message {
-  // biome-ignore lint/suspicious/noExplicitAny: Backend type update pending
   const msgAny = msg as any
   return {
     id: msg.id,
@@ -226,12 +225,12 @@ export const useChatStore = create<ChatState>()(
             updatedConversations = conversations.map((conv) =>
               conv.id === currentConversationId
                 ? {
-                  ...conv,
-                  messages: conv.messages.map((msg) =>
-                    msg.id === id ? { ...msg, content } : msg,
-                  ),
-                  updatedAt: new Date(),
-                }
+                    ...conv,
+                    messages: conv.messages.map((msg) =>
+                      msg.id === id ? { ...msg, content } : msg,
+                    ),
+                    updatedAt: new Date(),
+                  }
                 : conv,
             )
           }
@@ -263,14 +262,14 @@ export const useChatStore = create<ChatState>()(
           conversations: state.conversations.map((conv) =>
             conv.id === currentConversationId
               ? {
-                ...conv,
-                messages: conv.messages.map((msg) =>
-                  msg.id === id
-                    ? { ...msg, content: messageToSync.content }
-                    : msg,
-                ),
-                updatedAt: new Date(),
-              }
+                  ...conv,
+                  messages: conv.messages.map((msg) =>
+                    msg.id === id
+                      ? { ...msg, content: messageToSync.content }
+                      : msg,
+                  ),
+                  updatedAt: new Date(),
+                }
               : conv,
           ),
         }))
@@ -316,19 +315,19 @@ export const useChatStore = create<ChatState>()(
               if (conv.id === state.currentConversationId) {
                 // Find the message in conversation that matches the one we just updated
                 // Since messges in state.messages correspond to conv.messages
-                // We can use the same index or ID. 
+                // We can use the same index or ID.
                 // However, state.messages might be just the current conversation's messages.
                 // Safest to find by ID if possible, but the message ID is in updatedMessages[lastAssistantMsgIndex]
                 const targetMsgId = updatedMessages[lastAssistantMsgIndex].id
 
                 return {
                   ...conv,
-                  messages: conv.messages.map(m =>
+                  messages: conv.messages.map((m) =>
                     m.id === targetMsgId
                       ? { ...m, thinkingSteps: newThinkingSteps }
-                      : m
+                      : m,
                   ),
-                  updatedAt: new Date()
+                  updatedAt: new Date(),
                 }
               }
               return conv
@@ -338,7 +337,7 @@ export const useChatStore = create<ChatState>()(
           return {
             thinkingSteps: newThinkingSteps,
             messages: updatedMessages,
-            conversations: updatedConversations
+            conversations: updatedConversations,
           }
         }),
 
@@ -374,12 +373,12 @@ export const useChatStore = create<ChatState>()(
                 const targetMsgId = updatedMessages[lastAssistantMsgIndex].id
                 return {
                   ...conv,
-                  messages: conv.messages.map(m =>
+                  messages: conv.messages.map((m) =>
                     m.id === targetMsgId
                       ? { ...m, thinkingSteps: newThinkingSteps }
-                      : m
+                      : m,
                   ),
-                  updatedAt: new Date()
+                  updatedAt: new Date(),
                 }
               }
               return conv
@@ -389,7 +388,7 @@ export const useChatStore = create<ChatState>()(
           return {
             thinkingSteps: newThinkingSteps,
             messages: updatedMessages,
-            conversations: updatedConversations
+            conversations: updatedConversations,
           }
         }),
 
@@ -491,13 +490,13 @@ export const useChatStore = create<ChatState>()(
           conversations: state.conversations.map((c) =>
             c.id === id
               ? {
-                ...c,
-                ...(updates.title !== undefined && { title: updates.title }),
-                ...(updates.isPinned !== undefined && {
-                  isPinned: updates.isPinned,
-                }),
-                updatedAt: new Date(),
-              }
+                  ...c,
+                  ...(updates.title !== undefined && { title: updates.title }),
+                  ...(updates.isPinned !== undefined && {
+                    isPinned: updates.isPinned,
+                  }),
+                  updatedAt: new Date(),
+                }
               : c,
           ),
         }))

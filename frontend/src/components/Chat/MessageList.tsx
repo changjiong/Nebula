@@ -1,8 +1,8 @@
 import { Bot } from "lucide-react"
 import { useEffect, useRef } from "react"
-import { MarkdownRenderer } from "./MarkdownRenderer"
 import { useChatStore } from "@/stores/chatStore"
 import { ContentCanvas } from "../Timeline/ContentCanvas"
+import { MarkdownRenderer } from "./MarkdownRenderer"
 import { ThinkingMessage } from "./ThinkingMessage"
 
 export function MessageList() {

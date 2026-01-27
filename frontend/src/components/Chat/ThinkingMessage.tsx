@@ -12,14 +12,14 @@ import {
   Zap,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { cn } from "@/lib/utils"
-import type { ThinkingStep } from "@/stores/chatStore"
-import { useChatStore } from "@/stores/chatStore"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { cn } from "@/lib/utils"
+import type { ThinkingStep } from "@/stores/chatStore"
+import { useChatStore } from "@/stores/chatStore"
 
 interface ThinkingMessageProps {
   steps: ThinkingStep[]
@@ -56,13 +56,26 @@ const getSubItemIcon = (type: string, title: string) => {
   const titleLower = title.toLowerCase()
   if (titleLower.includes("搜索") || titleLower.includes("search"))
     return <Search {...props} />
-  if (titleLower.includes("浏览") || titleLower.includes("visit") || titleLower.includes("browse"))
+  if (
+    titleLower.includes("浏览") ||
+    titleLower.includes("visit") ||
+    titleLower.includes("browse")
+  )
     return <Globe {...props} />
-  if (titleLower.includes("文件") || titleLower.includes("file") || titleLower.includes("create") || titleLower.includes("edit"))
+  if (
+    titleLower.includes("文件") ||
+    titleLower.includes("file") ||
+    titleLower.includes("create") ||
+    titleLower.includes("edit")
+  )
     return <FileText {...props} />
   if (titleLower.includes("mcp") || titleLower.includes("database"))
     return <Database {...props} />
-  if (titleLower.includes("code") || titleLower.includes("run") || titleLower.includes("exec"))
+  if (
+    titleLower.includes("code") ||
+    titleLower.includes("run") ||
+    titleLower.includes("exec")
+  )
     return <Code {...props} />
 
   return <Zap {...props} />
@@ -74,7 +87,9 @@ function ThinkingIcon({ isAnimating }: { isAnimating: boolean }) {
       <Sparkles
         className={cn(
           "w-4 h-4 transition-colors duration-500",
-          isAnimating ? "text-amber-500/80 animate-pulse" : "text-muted-foreground/60"
+          isAnimating
+            ? "text-amber-500/80 animate-pulse"
+            : "text-muted-foreground/60",
         )}
       />
     </div>
@@ -96,17 +111,8 @@ function StepItem({
   onClick?: () => void
   isInteractive?: boolean
 }) {
-  return (
-    <div
-      onClick={onClick}
-      onKeyDown={isInteractive ? (e) => (e.key === "Enter" || e.key === " ") && onClick?.() : undefined}
-      role={isInteractive ? "button" : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      className={cn(
-        "flex items-start gap-3 py-1.5 px-2 -ml-2 rounded-md transition-colors text-sm group/item",
-        isInteractive && "hover:bg-muted/50 cursor-pointer"
-      )}
-    >
+  const content = (
+    <>
       <div className="mt-0.5 text-muted-foreground/70 group-hover/item:text-foreground/80 transition-colors">
         {status === "in-progress" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
@@ -118,10 +124,14 @@ function StepItem({
       </div>
 
       <div className="flex-1 min-w-0 grid gap-0.5">
-        <div className={cn(
-          "font-medium leading-none truncate",
-          status === "in-progress" ? "text-foreground" : "text-muted-foreground/90"
-        )}>
+        <div
+          className={cn(
+            "font-medium leading-none truncate",
+            status === "in-progress"
+              ? "text-foreground"
+              : "text-muted-foreground/90",
+          )}
+        >
           {title}
         </div>
         {subtitle && (
@@ -130,8 +140,28 @@ function StepItem({
           </div>
         )}
       </div>
-    </div>
+    </>
   )
+
+  const baseClassName =
+    "flex items-start gap-3 py-1.5 px-2 -ml-2 rounded-md transition-colors text-sm group/item"
+
+  if (isInteractive) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          baseClassName,
+          "hover:bg-muted/50 cursor-pointer w-full text-left",
+        )}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return <div className={baseClassName}>{content}</div>
 }
 
 export function ThinkingMessage({ steps }: ThinkingMessageProps) {
@@ -146,9 +176,9 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
       if (!isOpen) setIsOpen(true)
     } else {
       // When thinking finishes, keep it open or let user decide
-      // if (isOpen) setIsOpen(false) 
+      // if (isOpen) setIsOpen(false)
     }
-  }, [isThinking])
+  }, [isThinking, isOpen])
 
   // Grouping Logic
   const groupedSteps = useMemo(() => {
@@ -190,7 +220,9 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
     if (!isThinking) return `Thought Process • ${steps.length} steps`
 
     // Find the last active step
-    const activeStep = [...steps].reverse().find((s) => s.status === "in-progress")
+    const activeStep = [...steps]
+      .reverse()
+      .find((s) => s.status === "in-progress")
     if (activeStep) return activeStep.title
     return "Thinking..."
   }, [isThinking, steps])
@@ -198,17 +230,13 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
   if (steps.length === 0) return null
 
   return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      className="w-full my-4"
-    >
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full my-4">
       <CollapsibleTrigger asChild>
         <button
           type="button"
           className={cn(
             "flex items-center gap-2.5 w-full text-left group select-none py-1 rounded-md transition-colors",
-            "hover:bg-muted/30"
+            "hover:bg-muted/30",
           )}
         >
           <div className="flex items-center justify-center w-5 h-5">
@@ -219,17 +247,19 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
             )}
           </div>
 
-          <span className={cn(
-            "text-sm font-medium transition-colors",
-            isThinking ? "text-foreground" : "text-muted-foreground"
-          )}>
+          <span
+            className={cn(
+              "text-sm font-medium transition-colors",
+              isThinking ? "text-foreground" : "text-muted-foreground",
+            )}
+          >
             {currentStatusText}
           </span>
 
           <ChevronRight
             className={cn(
               "w-4 h-4 text-muted-foreground/50 transition-all duration-200 ml-auto mr-1",
-              isOpen && "rotate-90"
+              isOpen && "rotate-90",
             )}
           />
         </button>
@@ -245,21 +275,36 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
                   <div className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1">
                     {group.title}
                   </div>
-                  {group.steps?.map(step => (
+                  {group.steps?.map((step) => (
                     <div key={step.id}>
                       <StepItem
                         icon={getSubItemIcon("text", step.title)}
                         title={step.content || step.title}
                         status={step.status as any}
                       />
-                      {step.subItems?.map(subItem => (
-                        <div key={subItem.id} className="pl-4 mt-1 border-l border-border/30 ml-1">
+                      {step.subItems?.map((subItem) => (
+                        <div
+                          key={subItem.id}
+                          className="pl-4 mt-1 border-l border-border/30 ml-1"
+                        >
                           <StepItem
-                            icon={subItem.icon ? <img src={subItem.icon} className="w-3.5 h-3.5 rounded-sm" /> : getSubItemIcon(subItem.type, subItem.title)}
+                            icon={
+                              subItem.icon ? (
+                                <img
+                                  src={subItem.icon}
+                                  alt=""
+                                  className="w-3.5 h-3.5 rounded-sm"
+                                />
+                              ) : (
+                                getSubItemIcon(subItem.type, subItem.title)
+                              )
+                            }
                             title={subItem.title}
                             subtitle={subItem.source}
                             isInteractive={!!subItem.previewable}
-                            onClick={() => subItem.previewable && openCanvas(subItem)}
+                            onClick={() =>
+                              subItem.previewable && openCanvas(subItem)
+                            }
                           />
                         </div>
                       ))}
@@ -280,10 +325,23 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
                   subtitle={step.content}
                   status={step.status as any}
                 />
-                {step.subItems?.map(subItem => (
-                  <div key={subItem.id} className="pl-4 mt-1 border-l border-border/30 ml-1">
+                {step.subItems?.map((subItem) => (
+                  <div
+                    key={subItem.id}
+                    className="pl-4 mt-1 border-l border-border/30 ml-1"
+                  >
                     <StepItem
-                      icon={subItem.icon ? <img src={subItem.icon} className="w-3.5 h-3.5 rounded-sm" /> : getSubItemIcon(subItem.type, subItem.title)}
+                      icon={
+                        subItem.icon ? (
+                          <img
+                            src={subItem.icon}
+                            alt=""
+                            className="w-3.5 h-3.5 rounded-sm"
+                          />
+                        ) : (
+                          getSubItemIcon(subItem.type, subItem.title)
+                        )
+                      }
                       title={subItem.title}
                       subtitle={subItem.source}
                       isInteractive={!!subItem.previewable}

@@ -1,5 +1,6 @@
 import { Link as RouterLink } from "@tanstack/react-router"
 import {
+  BrainCircuit,
   Briefcase,
   Database,
   ListTodo,
@@ -9,7 +10,6 @@ import {
   Settings,
   Sun,
   Wrench,
-  BrainCircuit,
 } from "lucide-react"
 
 import { useTheme } from "@/components/theme-provider"

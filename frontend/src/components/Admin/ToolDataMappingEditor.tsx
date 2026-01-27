@@ -164,7 +164,7 @@ export function ToolDataMappingEditor({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">1. Direction</label>
+            <span className="text-sm font-medium block">1. Direction</span>
             <div className="flex gap-2">
               <Button
                 variant={selectedDirection === "input" ? "default" : "outline"}
@@ -186,7 +186,7 @@ export function ToolDataMappingEditor({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">2. Parameter Path</label>
+            <span className="text-sm font-medium block">2. Parameter Path</span>
             <Select value={selectedParam} onValueChange={setSelectedParam}>
               <SelectTrigger>
                 <SelectValue placeholder="Select parameter" />
@@ -212,9 +212,9 @@ export function ToolDataMappingEditor({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <span className="text-sm font-medium block">
               3. Target Standard Table
-            </label>
+            </span>
             <Select value={selectedTableId} onValueChange={setSelectedTableId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select table" />
@@ -230,7 +230,7 @@ export function ToolDataMappingEditor({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">4. Target Field</label>
+            <span className="text-sm font-medium block">4. Target Field</span>
             <Select
               value={selectedFieldId}
               onValueChange={setSelectedFieldId}
