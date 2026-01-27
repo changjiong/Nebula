@@ -1,0 +1,72 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "user" as user {
+  * id : UUID
+}
+
+entity "conversation" as conversation {
+  * id : UUID
+  --
+  user_id : UUID
+}
+
+entity "message" as message {
+  * id : UUID
+  --
+  conversation_id : UUID
+}
+
+entity "model_provider" as model_provider {
+  * id : UUID
+  --
+  owner_id : UUID
+}
+
+entity "tool" as tool {
+  * id : UUID
+  --
+  created_by : UUID
+}
+
+entity "skill" as skill {
+  * id : UUID
+  --
+  created_by : UUID
+}
+
+entity "task" as task {
+  * id : UUID
+}
+
+entity "standard_table" as standard_table {
+  * id : UUID
+}
+
+entity "table_field" as table_field {
+  * id : UUID
+  --
+  table_id : UUID
+}
+
+entity "tool_data_mapping" as tool_data_mapping {
+  * id : UUID
+  --
+  tool_id : UUID
+  table_id : UUID
+  field_id : UUID
+}
+
+user ||--o{ conversation : owns
+conversation ||--o{ message : has
+user ||--o{ model_provider : owns
+user ||--o{ tool : created_by
+user ||--o{ skill : created_by
+
+standard_table ||--o{ table_field : has
+standard_table ||--o{ tool_data_mapping : maps
+table_field ||--o{ tool_data_mapping : maps
+tool ||--o{ tool_data_mapping : maps
+
+@enduml

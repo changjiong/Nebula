@@ -1,6 +1,24 @@
-# Unified Agent Portal 设计规范 v2.0
+# Nebula 星图：Unified Agent Portal 设计与实施计划 v2.1
 
-> **版本说明**: 本文档融合了原始设计规范与 Native Function Calling 架构升级方案
+> **更新日期**: 2026-01-27  
+> **版本说明**: 本文档融合了原始设计规范与 Native Function Calling 架构升级方案，并以仓库代码为“事实来源”。
+
+---
+
+## 0. 与代码对齐说明
+
+### 0.1 当前代码基线
+
+- 后端：FastAPI + SQLModel + PostgreSQL（`backend/app`）
+- 前端：React + TypeScript + Vite（`frontend/src`）
+- 部署：Docker Compose（`docker-compose.yml`、`docker-compose.override.yml`、`docker-compose.coolify.yml`）
+
+### 0.2 关键现状/差异（需要在后续阶段收敛）
+
+- **Memory**：当前为进程内 `MemoryStore`（`backend/app/engine/memory.py`），不支持多副本共享；规划引入 Redis。
+- **多模型**：服务商配置以 DB `ModelProvider` 为主（`backend/app/models/model_provider.py`），`LLMGateway` 动态选择适配器（`backend/app/llm/gateway.py`）；环境变量 `DEEPSEEK_*` 目前不是可靠 fallback。
+- **权限**：`Tool/Skill/Agent` 模型字段采用 `visibility=public/department/role`，但 `backend/app/core/permissions.py` 仍按 `public/internal/private` 判定（需要统一，否则 department/role 会被错误拒绝）。
+- **前端接入**：`/data-standards`、`/agents`、`/model-providers` 已接入真实 API；`/tools`、`/skills` 页面仍以 Mock/UI 骨架为主，待对接 `/api/v1/tools`、`/api/v1/skills`。
 
 ---
 
@@ -75,7 +93,7 @@
 | **Planner** | 意图理解、Agent 路由、任务分解 | LangGraph + Native Function Calling |
 | **Executor** | 调用 Tool/Skill、并行执行、流式输出 | LangGraph DAG + 异步执行 |
 | **Validator** | 结果校验、合规检查、异常处理 | LLM + 规则引擎 |
-| **Memory** | 会话上下文、用户偏好、任务复用 | Redis + PostgreSQL |
+| **Memory** | 会话上下文、用户偏好、任务复用 | PostgreSQL 持久化 + 进程内 MemoryStore（规划 Redis） |
 
 ### 2.3 运行时流程 (Native Function Calling)
 
@@ -324,6 +342,17 @@ class AgentConfig(SQLModel, table=True):
 ## 4. 多模型支持架构
 
 ### 4.1 LLM Gateway 设计
+
+#### 4.1.1 代码现状（以仓库为准）
+
+- Gateway：`backend/app/llm/gateway.py`，根据 `provider_id`（UUID）或 `provider_type`（字符串）从 DB 读取 `ModelProvider` 并动态创建 Adapter，同时支持按 `model` 名称推断 provider。
+- Adapters：`backend/app/llm/adapters/openai_adapter.py`（OpenAI-compatible：openai/deepseek/qwen/moonshot/zhipu）、`backend/app/llm/adapters/anthropic_adapter.py`。
+- Provider 配置来源：`backend/app/models/model_provider.py`（支持 presets 初始化），前端管理入口为 `frontend/src/components/ModelSettings`。
+- 仍需完善：
+  - `gemini`、`baidu` 等 provider_type 在 presets 中存在，但当前无 Adapter（调用会失败）。
+  - `/api/v1/chat/stream` 文档注释中提到“env fallback”，但当前实际执行依赖 DB 命中可用 provider（无可用 provider 时会直接报错）。
+
+#### 4.1.2 目标设计（保留）
 
 ```python
 class LLMProvider(str, Enum):
@@ -943,6 +972,15 @@ async def get_user_available_tools(user: User) -> list[Tool]:
     all_tools = await db.query(Tool).filter(Tool.status == "active").all()
     return [t for t in all_tools if check_permission(user, t)]
 ```
+
+### 9.3 当前实现差异与收敛建议（必做）
+
+- 模型字段：`Tool`/`Skill`/`Agent` 均已落地 `visibility=public/department/role` 与 `allowed_departments/allowed_roles`（见 `backend/app/models/tool.py`、`backend/app/models/skill.py`、`backend/app/models/agent.py`）。
+- 实际过滤逻辑：`backend/app/core/permissions.py` 目前按 `public/internal/private` 判断，导致 `department/role` 资源会被默认拒绝（与设计不一致）。
+- 影响面：
+  - `/api/v1/chat/stream` 在组装 `tool_definitions` 前会调用 `filter_tools_by_permission`（见 `backend/app/api/routes/chat.py`）。
+  - `/api/v1/tools`、`/api/v1/skills` 列表接口同样依赖权限过滤（见 `backend/app/api/routes/tools.py`、`backend/app/api/routes/skills.py`）。
+- 收敛建议：统一为 `public/department/role`（与数据库字段一致），并补齐迁移/枚举约束与回填策略（避免历史数据中出现 `internal/private`）。
 
 ---
 
@@ -1835,26 +1873,26 @@ export function ChatArea() {
 
 ## 15. 实施路线图
 
-### Phase 1: 基础设施升级 (1 周)
+### Phase 1: 基础设施升级（已完成）
 
-- [ ] 创建 Tool/Skill 数据模型与迁移
-- [ ] 实现 Tool CRUD API
-- [ ] 实现 LLM Gateway + 多模型适配器
-- [ ] 验证 Native Function Calling 基础流程
+- [x] 创建 Tool/Skill 数据模型与迁移（Alembic）
+- [x] 实现 Tool/Skill CRUD API（`/api/v1/tools`、`/api/v1/skills`）
+- [x] 实现 LLM Gateway + 多模型适配器（OpenAI-compatible + Anthropic）
+- [x] 打通 Native Function Calling 流式对话（`/api/v1/chat/stream` + SSE）
 
-### Phase 2: 编排引擎重构 (1 周)
+### Phase 2: 编排引擎（已完成/部分收敛待做）
 
-- [ ] 重构 `engine/graph.py` 支持 Native Function Calling
-- [ ] 实现统一 ML 模型调用接口
-- [ ] 实现工具动态加载与执行
-- [ ] 完善 SSE 事件流
+- [x] NFC ReAct Loop（`backend/app/engine/nfc_graph.py`）
+- [x] 工具动态加载与执行（`backend/app/engine/tool_executor.py` + DB Tool + 内置工具注册）
+- [x] SSE 事件流（thinking/tool_call/tool_result/message/done）
+- [ ] 收敛 `backend/app/engine/graph.py` 与 `backend/app/engine/nfc_graph.py` 的职责（保留一个主流程/统一入口）
 
-### Phase 3: 知识工程管理 (2 周)
+### Phase 3: 知识工程管理（进行中）
 
-- [ ] Tool 管理界面 (列表、编辑、测试)
-- [ ] Skill 可视化编排器 (ReactFlow)
-- [ ] Agent 配置界面
-- [ ] 权限控制实现
+- [ ] `/tools`：接入真实 API（列表/编辑/测试/数据血缘图）
+- [ ] `/skills`：ReactFlow 编辑器落库（workflow/params_mapping/output_mapping）并与 `/api/v1/skills/*` 对接
+- [x] `/agents`：Agent 配置界面已接入 API（增删改）
+- [ ] 权限控制实现：统一 `public/department/role`，并在后端过滤 + 前端展示中落地
 
 ### Phase 4: 业务落地 (持续)
 
@@ -1863,21 +1901,21 @@ export function ChatArea() {
 - [ ] 对接真实数仓/模型平台
 - [ ] 性能优化与监控
 
-### Phase 5: 数据标准化层 (1.5 周) 🆕
+### Phase 5: 数据标准化层（进行中）
 
-- [ ] 创建 StandardTable/TableField/ToolDataMapping 模型
-- [ ] 实现数据表 CRUD API
-- [ ] 创建数据库迁移
-- [ ] 前端管理页面 `/admin/data-standards`
-- [ ] ReactFlow 数据图谱组件
+- [x] 创建 StandardTable/TableField/ToolDataMapping 模型与迁移
+- [x] 实现数据表 CRUD API（`/api/v1/standard-tables*`）与工具血缘图 API（`/api/v1/tools/{tool_id}/data-graph`）
+- [x] 前端管理页面 `/data-standards`（标准表列表/创建；编辑/删除待补）
+- [x] ReactFlow 数据图谱组件（`frontend/src/components/DataGraph/ToolDataGraph.tsx`）
+- [ ] 字段/映射全流程管理：TableField 与 ToolDataMapping 的增删改 + 选择器 + 校验
+- [ ] Tools 列表改为真实数据源后，打通“工具详情 → 血缘图谱”
 
-### Phase 6: Canvas 画布交互 (2 周) 🆕
+### Phase 6: Canvas 画布交互（进行中/待扩展）
 
-- [ ] 重构 MessageList 为左右双栏布局
-- [ ] 实现 ArtifactCanvas 组件体系
-- [ ] 后端 SSE 支持 artifact 事件
-- [ ] 点对点编辑功能 (文本选择 + 浮动工具栏)
-- [ ] AI 改写功能集成
+- [x] ContentCanvas（从思维链/子项预览打开，见 `frontend/src/components/Timeline/ContentCanvas`）
+- [ ] 后端 SSE artifact 事件规范化（与前端 DynamicComponents/Canvas 对接）
+- [ ] 关系图谱/雷达图等可视化组件与真实数据对接（当前多为占位实现）
+- [ ] 点对点编辑（文本选择 + 浮动工具栏）与 AI 改写集成
 
 ---
 
@@ -2004,19 +2042,239 @@ class AgentState(str, Enum):
 
 ---
 
-## 17. 当前完成进度
+## 17. 开发进度与任务对照
 
-| 模块 | 原规划 | 实际完成 | 新规划需补充 |
-|------|-------|---------|-------------|
-| 对话界面 | ✅ | ✅ 已完成 | - |
-| SSE 流式 | ✅ | ✅ 已完成 | 事件类型增强 + artifact 事件 |
-| engine/ 编排层 | ✅ | ✅ 基础完成 | 重构为 Native FC |
-| adapters/ | ✅ | ✅ 已完成 | 增加统一 ML 接口 |
-| Tool 管理 | - | ❌ | 🆕 新增 |
-| Skill 编排器 | - | ❌ | 🆕 新增 |
-| 多模型支持 | - | ❌ | 🆕 新增 |
-| 权限控制 | ✅ | ❌ | 实现 |
-| 思维链增强 | ✅ | ⚠️ 基础 | 细化 |
-| 数据标准化层 | - | ❌ | 🆕 Phase 5 |
-| Canvas 画布交互 | - | ❌ | 🆕 Phase 6 |
+> **更新日期**: 2026-01-27
+> 
+> 本节对比开发任务拆分与当前实现状态，指导后续开发优先级。
 
+### 17.1 总览
+
+| 阶段 | 任务数 | ✅已完成 | 🔄部分 | ❌待开发 |
+|------|--------|---------|--------|---------|
+| 阶段一：数据底座与原子工具 | 7 | 2 | 3 | 2 |
+| 阶段二：技能封装与编排引擎 | 7 | 2 | 3 | 2 |
+| 阶段三：智能规划与意图识别 | 5 | 2 | 2 | 1 |
+| 阶段四：交互实现与端到端联调 | 5 | 2 | 2 | 1 |
+| **合计** | **24** | **8 (33%)** | **10 (42%)** | **6 (25%)** |
+
+### 17.2 阶段一：数据底座与原子工具
+
+| 任务 | 状态 | 当前实现 | 代码位置 |
+|------|------|----------|----------|
+| 程序架构设计与后端框架搭建 | ✅ | FastAPI + SQLModel + PostgreSQL | `backend/app/main.py` |
+| 通用模型执行器封装 (T-05) | ✅ | LLM Gateway + 多模型适配器 | `backend/app/llm/gateway.py`, `engine/tool_executor.py` |
+| 业务数据标准定义 | 🔄 | StandardTable/TableField 模型已实现 | `models/standard_table.py`, `routes/_layout/data-standards.tsx` |
+| Data Fetchers (T-01~T-04) | 🔄 | BaseTool + WebSearchTool 已实现 | `tools/base.py`, 缺 `fetch_internal_tx`, `fetch_external_saic` |
+| 数据管理器UI (基础版) | 🔄 | 界面已实现，拖拽映射待完善 | `routes/_layout/tools.tsx`, `skills.tsx` |
+| 数据语义标注与知识库 | ❌ | 待开发 | - |
+| 数据清洗ETL脚本 | ❌ | 待开发 | - |
+
+### 17.3 阶段二：技能封装与编排引擎
+
+| 任务 | 状态 | 当前实现 | 代码位置 |
+|------|------|----------|----------|
+| 编排引擎开发 (Engine) | ✅ | LangGraph ReAct Loop + DAG调度 | `engine/nfc_graph.py`, `graph.py` |
+| 全链路追溯日志系统 | ✅ | SSE事件流 + thinking_steps | `api/routes/chat.py`, `hooks/useSSE.ts` |
+| 规则类技能实现 | 🔄 | enterprise_resolver, kechuang_evaluator | `agent/`, BS-01/04/07 逻辑待完善 |
+| 算法类技能实现 | 🔄 | counterparty_mining 已实现 | BS-06亲密度/BS-08 TOPSIS 待开发 |
+| 模型管理器UI开发 | 🔄 | 管理页骨架已实现，工具/技能仍以 Mock 为主 | 可视化编排工作室(ReactFlow) 待接入后端 |
+| 算法逻辑说明书 | ❌ | 待输出文档 | - |
+| 解决方案编排 (SS) | ❌ | 待使用界面编排验证 | - |
+
+### 17.4 阶段三：智能规划与意图识别
+
+| 任务 | 状态 | 当前实现 | 代码位置 |
+|------|------|----------|----------|
+| 意图识别模块 (Planner) | ✅ | LLMPlanner + 参数提取 | `engine/planner.py`, `nfc_graph.py` |
+| LLM集成与流式输出 | ✅ | SSE StreamingResponse | `api/routes/chat.py`, `stores/chatStore.ts` |
+| 上下文记忆模块 | 🔄 | memory.py + checkpointer | `engine/memory.py`, Session Memory 待增强 |
+| 业务Prompt工程 | 🔄 | prompts 目录存在 | `agent/prompts/`, Few-shot待补充 |
+| 任务拆分修正机制 | ❌ | Human-in-the-loop 待开发 | - |
+
+### 17.5 阶段四：交互实现与端到端联调
+
+| 任务 | 状态 | 当前实现 | 代码位置 |
+|------|------|----------|----------|
+| Manus布局框架搭建 | ✅ | 三栏布局 + Router | `routes/_layout.tsx`, `components/Sidebar/` |
+| 交互式思维链组件 | ✅ | ThinkingChain + Timeline | `components/ThinkingChain/`, `Chat/MessageList.tsx` |
+| 可视化组件开发 (Canvas) | 🔄 | DynamicComponents 10个 + ContentCanvas | `components/DynamicComponents/`, `components/Timeline/ContentCanvas` |
+| 数据质量预警集成 | 🔄 | 基本error处理 | Error Code规范化待完善 |
+| 性能优化与API开放 | ❌ | 待开发 | Provider 兜底、MCP协议/API文档 |
+
+### 17.6 优先级建议
+
+#### P0 - 数据底座 (阻塞后续开发)
+1. **Data Fetchers** - `fetch_internal_tx`, `fetch_external_saic` 核心数据获取工具
+2. **权限收敛** - 统一 `public/department/role`（避免工具/技能过滤失效）
+3. **Provider 兜底** - presets/adapter 不一致与 env fallback
+
+#### P1 - 业务能力 (核心功能)
+1. **算法类技能** - BS-06亲密度、BS-08 TOPSIS
+2. **可视化编排** - ReactFlow DAG编辑器（落库 + 执行）
+3. **业务Prompt** - 银行术语Few-shot案例
+
+#### P2 - 体验优化
+1. **可视化组件** - 关系图谱、雷达图、风险看板
+2. **Human-in-the-loop** - 任务修正机制
+
+#### P3 - 文档与开放
+1. **数据字典文档** - 《Nebula数据字典v1.0》
+2. **算法说明书** - BS-01~BS-08
+3. **API开放** - MCP协议接口
+
+---
+
+## 18. 数据模型 ER 图
+
+### 18.1 数据库表关系图
+
+```mermaid
+erDiagram
+    User ||--o{ Conversation : "owns"
+    User ||--o{ ModelProvider : "owns"
+    User ||--o{ Tool : "created_by"
+    User ||--o{ Skill : "created_by"
+    
+    Conversation ||--o{ Message : "contains"
+    
+    StandardTable ||--o{ TableField : "has"
+    StandardTable ||--o{ ToolDataMapping : "linked"
+    TableField ||--o{ ToolDataMapping : "mapped"
+    Tool ||--o{ ToolDataMapping : "params"
+    
+    Skill }o--o{ Tool : "uses (via tool_ids)"
+    Agent }o--o{ Tool : "uses (via tools)"
+
+    User {
+        uuid id PK
+        string email UK
+        string hashed_password
+        string full_name
+        string department
+        json roles
+        bool is_superuser
+    }
+
+    Conversation {
+        uuid id PK
+        uuid user_id FK
+        string title
+        bool is_pinned
+        datetime created_at
+    }
+
+    Message {
+        uuid id PK
+        uuid conversation_id FK
+        string role
+        text content
+        json thinking_steps
+    }
+
+    Agent {
+        uuid id PK
+        string name
+        text system_prompt
+        string model_name
+        json tools
+        string visibility
+        string execution_mode
+    }
+
+    Task {
+        uuid id PK
+        string name
+        string status
+        int total_items
+        int processed_items
+        json result
+    }
+
+    ModelProvider {
+        uuid id PK
+        uuid owner_id FK
+        string name
+        string provider_type
+        string api_url
+        json models
+    }
+
+    Tool {
+        uuid id PK
+        string name UK
+        string display_name
+        string tool_type
+        json input_schema
+        json output_schema
+        json service_config
+        string visibility
+    }
+
+    Skill {
+        uuid id PK
+        string name UK
+        string display_name
+        json workflow
+        json tool_ids
+        json input_schema
+        string visibility
+    }
+
+    StandardTable {
+        uuid id PK
+        string name UK
+        string display_name
+        string source
+        string status
+    }
+
+    TableField {
+        uuid id PK
+        uuid table_id FK
+        string name
+        string data_type
+        bool is_primary_key
+    }
+
+    ToolDataMapping {
+        uuid id PK
+        uuid tool_id FK
+        uuid table_id FK
+        uuid field_id FK
+        string param_path
+        string param_direction
+    }
+```
+
+### 18.2 数据模型索引
+
+| 模型 | 表名 | 用途 | 定义位置 |
+|------|------|------|----------|
+| `User` | user | 用户认证与权限 | `models/__init__.py:104` |
+| `Conversation` | conversation | 会话管理 | `models/conversation.py:25` |
+| `Message` | message | 聊天消息 (含thinking_steps) | `models/conversation.py:64` |
+| `Agent` | agent | 业务代理配置 | `models/agent.py:56` |
+| `Task` | task | 批量任务管理 | `models/task.py:25` |
+| `ModelProvider` | model_provider | AI模型服务商 (8个预置) | `models/model_provider.py:88` |
+| `Tool` | tool | 原子工具 (Native FC) | `models/tool.py:100` |
+| `Skill` | skill | DAG编排技能 | `models/skill.py:102` |
+| `StandardTable` | standard_table | 标准数据表定义 | `models/standard_table.py:11` |
+| `TableField` | table_field | 标准表字段 | `models/standard_table.py:53` |
+| `ToolDataMapping` | tool_data_mapping | 工具参数映射 (数据血缘) | `models/standard_table.py:92` |
+
+### 18.3 核心数据流
+
+```
+[前端] InputBox → useSSE → /api/v1/chat/stream
+                    ↓
+[后端] chat.py → nfc_stream_generator → stream_nfc_agent
+                    ↓
+[Engine] nfc_graph: plan → think → execute_tools → respond
+                    ↓
+[工具层] tool_executor (DB工具 + 内置工具)
+                    ↓
+[SSE事件] thinking | tool_call | tool_result | message
+                    ↓
+[前端] useSSE → chatStore → MessageList
+```
