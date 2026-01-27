@@ -20,7 +20,9 @@ x-backend-env: &backend-env
   DOMAIN: ${DOMAIN:-localhost}
   FRONTEND_HOST: ${FRONTEND_HOST:?Frontend host is required}
   ENVIRONMENT: ${ENVIRONMENT:-production}
-  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
+  # Default to allowing the configured frontend origin to avoid startup failures
+  # and CORS mismatches when BACKEND_CORS_ORIGINS isn't explicitly set.
+  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-${FRONTEND_HOST}}
   SECRET_KEY: ${SECRET_KEY:?Secret key is required}
   FIRST_SUPERUSER: ${FIRST_SUPERUSER:?First superuser email is required}
   FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
@@ -103,7 +105,8 @@ services:
     volumes:
       - backend-static:/app/static
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/" ]
+      # Don't rely on `curl` being present in the base image.
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/utils/health-check/', timeout=3)" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -122,7 +125,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_API_URL: ${VITE_API_URL:-https://api.${DOMAIN:-localhost}}
         NODE_ENV: production
     expose:
       - "80"
