@@ -69,6 +69,13 @@ services:
   # ========== 数据库迁移 (prestart) ==========
   prestart:
     image: '${DOCKER_IMAGE_BACKEND:-backend}:${TAG:-latest}'
+    # One-shot init job (migrations + initial data). If the platform forces a
+    # restart policy, the container will loop and block `depends_on:
+    # service_completed_successfully`.
+    restart: "no"
+    deploy:
+      restart_policy:
+        condition: none
     build:
       context: ./backend
     depends_on:
