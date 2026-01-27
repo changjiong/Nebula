@@ -131,7 +131,9 @@ git push origin master
 |--------|------------|---------|
 | Branch | `master` | `develop` |
 | Build Pack | Docker Compose | Docker Compose |
-| Docker Compose File | `docker-compose.yml` | `docker-compose.yml` |
+| Docker Compose File | `docker-compose.coolify.yml` | `docker-compose.coolify.yml` |
+
+> **注意**: `docker-compose.coolify.yml` 是专为 Coolify 优化的配置文件，已移除 Traefik 标签（Coolify 自动处理 SSL/代理）。
 
 #### 3. 配置环境变量
 
@@ -166,13 +168,21 @@ EMAILS_FROM_EMAIL=
 2. Coolify 会自动配置 GitHub Webhook
 3. 验证：GitHub 仓库 Settings → Webhooks 应有 Coolify 的记录
 
-#### 5. 配置域名（可选）
+#### 5. 配置域名
 
-在 Coolify 的 **Domains** 设置中添加：
-- Production: `nebula.example.com`
-- Staging: `staging.nebula.example.com`
+本项目包含多个服务，需要在 Coolify 中分别配置域名：
 
-Coolify 会自动申请 Let's Encrypt SSL 证书。
+| 服务 | 域名示例 | 端口 | 说明 |
+|------|----------|------|------|
+| **frontend** | `dashboard.nebula.example.com` | 80 | 用户界面 |
+| **backend** | `api.nebula.example.com` | 8000 | API 服务 |
+| **adminer** (可选) | `adminer.nebula.example.com` | 8080 | 数据库管理 |
+
+配置步骤：
+1. 在 Coolify 应用 → **Settings** → **General**
+2. 找到对应服务的配置区域
+3. 添加域名和对应的内部端口
+4. Coolify 会自动申请 Let's Encrypt SSL 证书
 
 ---
 

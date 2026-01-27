@@ -1,0 +1,171 @@
+# ===========================================
+# Nebula 星图 - Coolify 部署配置
+# ===========================================
+# 此文件专为 Coolify 部署优化
+# Coolify 会自动处理:
+#   - SSL/TLS 证书 (Let's Encrypt)
+#   - 反向代理和负载均衡
+#   - 健康检查和自动重启
+#   - 环境变量注入
+#
+# 使用方式:
+#   1. 在 Coolify 中创建新应用 -> 选择 Docker Compose
+#   2. 指定此文件为 Docker Compose File: docker-compose.coolify.yml
+#   3. 在 Coolify Environment Variables 中配置所需变量
+#   4. 在 Coolify 中配置域名 (会自动处理 SSL)
+# ===========================================
+
+services:
+  # ========== 数据库 ==========
+  db:
+    image: postgres:17
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app}" ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+    networks:
+      - internal
+
+  # ========== 数据库管理 (可选) ==========
+  adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - ADMINER_DESIGN=pepa-linha-dark
+    # Coolify 会根据配置的域名自动添加代理规则
+    # 建议在 Coolify 中为 adminer 配置独立域名，如 adminer.your-domain.com
+    networks:
+      - internal
+      - default
+
+  # ========== 数据库迁移 (prestart) ==========
+  prestart:
+    image: '${DOCKER_IMAGE_BACKEND:-backend}:${TAG:-latest}'
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    command: bash scripts/prestart.sh
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - FRONTEND_HOST=${FRONTEND_HOST:?Frontend host is required}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - SECRET_KEY=${SECRET_KEY:?Secret key is required}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER:?First superuser email is required}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_TLS=${SMTP_TLS:-True}
+      - SMTP_SSL=${SMTP_SSL:-False}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL:-noreply@example.com}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      # AI 模型配置
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+    networks:
+      - internal
+
+  # ========== 后端 API ==========
+  backend:
+    image: '${DOCKER_IMAGE_BACKEND:-backend}:${TAG:-latest}'
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      prestart:
+        condition: service_completed_successfully
+    build:
+      context: ./backend
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - FRONTEND_HOST=${FRONTEND_HOST:?Frontend host is required}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - SECRET_KEY=${SECRET_KEY:?Secret key is required}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER:?First superuser email is required}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_TLS=${SMTP_TLS:-True}
+      - SMTP_SSL=${SMTP_SSL:-False}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL:-noreply@example.com}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      # AI 模型配置
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+    volumes:
+      - backend-static:/app/static
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/utils/health-check/" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # 暴露端口供 Coolify 代理
+    # Coolify 会自动检测并配置反向代理
+    expose:
+      - "8000"
+    networks:
+      - internal
+      - default
+
+  # ========== 前端 ==========
+  frontend:
+    image: '${DOCKER_IMAGE_FRONTEND:-frontend}:${TAG:-latest}'
+    restart: always
+    depends_on:
+      - backend
+    build:
+      context: ./frontend
+      args:
+        # Coolify 部署时，使用配置的 API 域名
+        - VITE_API_URL=${VITE_API_URL:-https://api.${DOMAIN:-localhost}}
+        - NODE_ENV=production
+    # 暴露端口供 Coolify 代理
+    expose:
+      - "80"
+    networks:
+      - default
+
+volumes:
+  app-db-data:
+    name: nebula-db-data
+  backend-static:
+    name: nebula-backend-static
+
+networks:
+  internal:
+    # 内部网络，服务间通信
+    driver: bridge
+  default:
+    # 默认网络，Coolify 会自动连接代理
+    driver: bridge
