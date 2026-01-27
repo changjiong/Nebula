@@ -279,7 +279,8 @@ export function ThinkingMessage({ steps }: ThinkingMessageProps) {
                     <div key={step.id}>
                       <StepItem
                         icon={getSubItemIcon("text", step.title)}
-                        title={step.content || step.title}
+                        title={step.title}
+                        subtitle={step.content}
                         status={step.status as any}
                       />
                       {step.subItems?.map((subItem) => (
