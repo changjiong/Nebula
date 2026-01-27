@@ -15,6 +15,36 @@
 #   4. 在 Coolify 中配置域名 (会自动处理 SSL)
 # ===========================================
 
+# ========== 共享配置 (YAML 锚点) ==========
+x-backend-env: &backend-env
+  DOMAIN: ${DOMAIN:-localhost}
+  FRONTEND_HOST: ${FRONTEND_HOST:?Frontend host is required}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-}
+  SECRET_KEY: ${SECRET_KEY:?Secret key is required}
+  FIRST_SUPERUSER: ${FIRST_SUPERUSER:?First superuser email is required}
+  FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
+  # 邮件配置
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_TLS: ${SMTP_TLS:-True}
+  SMTP_SSL: ${SMTP_SSL:-False}
+  EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-noreply@example.com}
+  # 数据库配置
+  POSTGRES_SERVER: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-app}
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
+  # 监控配置
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  # AI 模型配置
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  DEEPSEEK_API_BASE: ${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}
+  LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+
 services:
   # ========== 数据库 ==========
   db:
@@ -29,26 +59,12 @@ services:
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
     environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-app}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
     networks:
       - internal
-
-  # ========== 数据库管理 (可选) ==========
-  adminer:
-    image: adminer
-    restart: always
-    depends_on:
-      - db
-    environment:
-      - ADMINER_DESIGN=pepa-linha-dark
-    # Coolify 会根据配置的域名自动添加代理规则
-    # 建议在 Coolify 中为 adminer 配置独立域名，如 adminer.your-domain.com
-    networks:
-      - internal
-      - default
 
   # ========== 数据库迁移 (prestart) ==========
   prestart:
@@ -60,30 +76,7 @@ services:
         condition: service_healthy
     command: bash scripts/prestart.sh
     environment:
-      - DOMAIN=${DOMAIN:-localhost}
-      - FRONTEND_HOST=${FRONTEND_HOST:?Frontend host is required}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY:?Secret key is required}
-      - FIRST_SUPERUSER=${FIRST_SUPERUSER:?First superuser email is required}
-      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_TLS=${SMTP_TLS:-True}
-      - SMTP_SSL=${SMTP_SSL:-False}
-      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL:-noreply@example.com}
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-app}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-      # AI 模型配置
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}
-      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+      <<: *backend-env
     networks:
       - internal
 
@@ -99,30 +92,7 @@ services:
     build:
       context: ./backend
     environment:
-      - DOMAIN=${DOMAIN:-localhost}
-      - FRONTEND_HOST=${FRONTEND_HOST:?Frontend host is required}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY:?Secret key is required}
-      - FIRST_SUPERUSER=${FIRST_SUPERUSER:?First superuser email is required}
-      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:?First superuser password is required}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_TLS=${SMTP_TLS:-True}
-      - SMTP_SSL=${SMTP_SSL:-False}
-      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL:-noreply@example.com}
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-app}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Database password is required}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-      # AI 模型配置
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-https://api.deepseek.com/v1}
-      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+      <<: *backend-env
     volumes:
       - backend-static:/app/static
     healthcheck:
@@ -130,8 +100,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    # 暴露端口供 Coolify 代理
-    # Coolify 会自动检测并配置反向代理
     expose:
       - "8000"
     networks:
@@ -147,10 +115,8 @@ services:
     build:
       context: ./frontend
       args:
-        # Coolify 部署时，使用配置的 API 域名
-        - VITE_API_URL=${VITE_API_URL:-https://api.${DOMAIN:-localhost}}
-        - NODE_ENV=production
-    # 暴露端口供 Coolify 代理
+        VITE_API_URL: ${VITE_API_URL:-https://api.${DOMAIN:-localhost}}
+        NODE_ENV: production
     expose:
       - "80"
     networks:
