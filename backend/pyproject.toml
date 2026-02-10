@@ -24,6 +24,7 @@ dependencies = [
     "pyjwt<3.0.0,>=2.8.0",
     # LangGraph engine dependencies
     "langgraph>=0.2.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
     "langchain-core>=0.3.0",
     "pillow>=10.0.0",
     "requests>=2.31.0",
@@ -34,6 +35,8 @@ dependencies = [
 [tool.uv]
 dev-dependencies = [
     "pytest<8.0.0,>=7.4.3",
+    "pytest-anyio>=0.0.0",
+    "pytest-asyncio>=0.23.0",
     "mypy<2.0.0,>=1.8.0",
     "ruff<1.0.0,>=0.2.2",
     "prek>=0.2.24,<1.0.0",
@@ -86,3 +89,8 @@ sort = "-Cover"
 
 [tool.coverage.html]
 show_contexts = true
+
+[tool.pytest.ini_options]
+# Use asyncio backend only (not trio) for anyio tests
+anyio_backends = ["asyncio"]
+asyncio_mode = "auto"

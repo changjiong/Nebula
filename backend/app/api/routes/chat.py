@@ -192,7 +192,31 @@ def send_message(
     if conversation.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    message = ChatMessage(conversation_id=conversation_id, **message_in.model_dump(exclude={"conversation_id"}))
+    # Idempotency: avoid duplicating messages when both client and stream endpoint persist.
+    last_stmt = (
+        select(ChatMessage)
+        .where(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(1)
+    )
+    last_msg = session.exec(last_stmt).first()
+    if (
+        last_msg
+        and last_msg.role == message_in.role
+        and last_msg.content == message_in.content
+    ):
+        # If thinking_steps are provided and not yet stored, update in-place.
+        if message_in.thinking_steps and not last_msg.thinking_steps:
+            last_msg.thinking_steps = message_in.thinking_steps
+            session.add(last_msg)
+            session.commit()
+            session.refresh(last_msg)
+        return last_msg
+
+    message = ChatMessage(
+        conversation_id=conversation_id,
+        **message_in.model_dump(exclude={"conversation_id"}),
+    )
     session.add(message)
     session.commit()
     session.refresh(message)
@@ -292,6 +316,47 @@ async def nfc_stream_generator(
         else:
             return f"调用工具: {tool_name}"
 
+    # Build conversation context for the agent (exclude the current user input to avoid duplication)
+    conversation_messages: list[dict[str, Any]] = []
+    if conversation_id and db_session:
+        try:
+            statement = (
+                select(ChatMessage)
+                .where(ChatMessage.conversation_id == conversation_id)
+                .order_by(ChatMessage.created_at)
+            )
+            history = db_session.exec(statement).all()
+            conversation_messages = []
+            for m in history:
+                if not (isinstance(m.content, str) and m.content.strip()):
+                    continue
+                role = m.role if m.role in ["system", "user", "assistant", "tool"] else "user"
+                entry = {"role": role, "content": m.content}
+                # De-duplicate consecutive identical messages (common when both stream and client persist)
+                if (
+                    conversation_messages
+                    and conversation_messages[-1].get("role") == entry["role"]
+                    and conversation_messages[-1].get("content") == entry["content"]
+                ):
+                    continue
+                conversation_messages.append(entry)
+
+            # If the client already persisted the current user message (or the stream endpoint did),
+            # drop trailing duplicates so the graph doesn't see the same user input twice.
+            while (
+                conversation_messages
+                and conversation_messages[-1].get("role") == "user"
+                and conversation_messages[-1].get("content") == input_text
+            ):
+                conversation_messages.pop()
+
+            # Keep context bounded
+            max_context_messages = 24
+            if len(conversation_messages) > max_context_messages:
+                conversation_messages = conversation_messages[-max_context_messages:]
+        except Exception:
+            conversation_messages = []
+
     queue = asyncio.Queue()
     token = stream_context_var.set(StreamContext(queue=queue))
     
@@ -309,6 +374,9 @@ async def nfc_stream_generator(
                 tools=tools,
                 session=db_session,
                 provider_id=provider_id,
+                messages=conversation_messages,
+                thread_id=str(conversation_id) if conversation_id else None,
+                use_checkpointer=True,
             ):
                 await queue.put({"type": "graph_event", "payload": event})
         except Exception as e:
@@ -395,79 +463,82 @@ async def nfc_stream_generator(
                             for i, step in enumerate(steps):
                                 content += f"{i+1}. {step}\n"
                         
-                        # Use the existing thinking step (initial or current) if available
+                        if not content.strip():
+                            continue
+
+                        # Prefer filling the existing placeholder if it's still empty,
+                        # otherwise emit a dedicated planning step.
                         target_id = current_think_id or initial_think_id
-                        
-                        if target_id:
-                             # Update the existing placeholder
-                             # If we streamed some reasoning already (R1), we might append or just leave it.
-                             # If it was empty (V3), this 'reasoning' from JSON fills it.
-                             
-                             # If we have streamed content, maybe append the plan?
-                             # Or if text is empty, fill it.
-                             if target_id in steps_map:
-                                 current_content = steps_map[target_id].get("content", "")
-                                 if not current_content.strip():
-                                     # It was empty (Zombie), fill it with the plan reasoning
-                                     # We stick the whole plan content here? 
-                                     # The user wants "Thinking Process". 
-                                     # Let's put the reasoning here.
-                                     steps_map[target_id]["content"] = content
-                                     steps_map[target_id]["status"] = "completed"
-                                     
-                                     sse_data = {
-                                        "id": target_id,
-                                        "title": "思考过程",
-                                        "status": "completed",
-                                        "content": content,
-                                        "group": "分析与推理"
-                                     }
-                                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
-                                     
-                                     # Reset current_think_id so we don't try to close it again later
-                                     current_think_id = None
-                                 else:
-                                     # It had content (R1 streamed thoughts). 
-                                     # We should probably just complete it.
-                                     # And maybe let the Plan be its own step if separate?
-                                     # But for now, let's just mark it complete.
-                                     sse_data = {
-                                        "id": target_id,
-                                        "title": "思考过程",
-                                        "status": "completed",
-                                        "content": current_content, # Keep existing streamed thoughts
-                                        "group": "分析与推理"
-                                     }
-                                     yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
-                                     current_think_id = None
-                                     
-                                     # If we have a Plan (steps) and it wasn't shown in the thoughts, 
-                                     # maybe we still want to show the specific Plan step?
-                                     # Let's optionally create a Plan step if R1 was used?
-                                     # Actually, unifying is safer.
+                        existing_content = ""
+                        if target_id and target_id in steps_map:
+                            existing_content = steps_map[target_id].get("content", "")
+
+                        if target_id and target_id in steps_map and not existing_content.strip():
+                            accumulated = ""
+                            steps_map[target_id]["status"] = "in-progress"
+                            chunk_size = 160
+                            for i in range(0, len(content), chunk_size):
+                                delta = content[i : i + chunk_size]
+                                accumulated += delta
+                                steps_map[target_id]["content"] = accumulated
+                                sse_data = {
+                                    "id": target_id,
+                                    "title": "思考过程",
+                                    "status": "in-progress",
+                                    "content": delta,
+                                    "accumulated": accumulated,
+                                    "group": "分析与推理",
+                                }
+                                yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+
+                            steps_map[target_id]["status"] = "completed"
+                            sse_data = {
+                                "id": target_id,
+                                "title": "思考过程",
+                                "status": "completed",
+                                "content": accumulated,
+                                "group": "分析与推理",
+                            }
+                            yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+                            current_think_id = None
                         else:
-                            # creating a dedicated Planning step
                             plan_id = f"plan-{uuid.uuid4()}"
-                            
-                            # Log to history
                             step_entry = {
                                 "id": plan_id,
-                                "title": "Agent Perception & Planning",
-                                "status": "completed",
-                                "content": content,
+                                "title": "规划与决策",
+                                "status": "in-progress",
+                                "content": "",
                                 "timestamp": int(datetime.now().timestamp() * 1000),
-                                "group": "规划与决策"
+                                "group": "规划与决策",
                             }
                             thinking_steps_log.append(step_entry)
                             steps_map[plan_id] = step_entry
-                            
-                            # Emit SSE
+
+                            yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(step_entry)})}\n\n"
+
+                            accumulated = ""
+                            chunk_size = 160
+                            for i in range(0, len(content), chunk_size):
+                                delta = content[i : i + chunk_size]
+                                accumulated += delta
+                                steps_map[plan_id]["content"] = accumulated
+                                sse_data = {
+                                    "id": plan_id,
+                                    "title": "规划与决策",
+                                    "status": "in-progress",
+                                    "content": delta,
+                                    "accumulated": accumulated,
+                                    "group": "规划与决策",
+                                }
+                                yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
+
+                            steps_map[plan_id]["status"] = "completed"
                             sse_data = {
                                 "id": plan_id,
-                                "title": "Agent Perception & Planning",
+                                "title": "规划与决策",
                                 "status": "completed",
-                                "content": content,
-                                "group": "规划与决策"
+                                "content": accumulated,
+                                "group": "规划与决策",
                             }
                             yield f"data: {json.dumps({'event': 'thinking', 'data': json.dumps(sse_data)})}\n\n"
 
@@ -773,14 +844,37 @@ async def nfc_stream_generator(
         # Persist the assistant message
         if conversation_id and db_session:
             # Check permissions? Already checked in endpoint.
-            assistant_msg = ChatMessage(
-                conversation_id=conversation_id,
-                role="assistant",
-                content=full_response_content,
-                thinking_steps=thinking_steps_log
-            )
-            db_session.add(assistant_msg)
-            db_session.commit()
+            try:
+                last_stmt = (
+                    select(ChatMessage)
+                    .where(ChatMessage.conversation_id == conversation_id)
+                    .order_by(ChatMessage.created_at.desc())
+                    .limit(1)
+                )
+                last_msg = db_session.exec(last_stmt).first()
+
+                # Idempotency: if client already saved the same assistant content, update thinking_steps in-place.
+                if (
+                    last_msg
+                    and last_msg.role == "assistant"
+                    and last_msg.content == full_response_content
+                ):
+                    if (not last_msg.thinking_steps) and thinking_steps_log:
+                        last_msg.thinking_steps = thinking_steps_log
+                        db_session.add(last_msg)
+                        db_session.commit()
+                else:
+                    assistant_msg = ChatMessage(
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=full_response_content,
+                        thinking_steps=thinking_steps_log,
+                    )
+                    db_session.add(assistant_msg)
+                    db_session.commit()
+            except Exception:
+                # Best-effort persistence; streaming response should still succeed.
+                pass
 
         yield f"data: {json.dumps({'event': 'done', 'data': '{}'})}\n\n"
 
@@ -838,14 +932,22 @@ def stream_chat(
         if conversation.user_id != current_user.id:
              raise HTTPException(status_code=403, detail="Not enough permissions")
         
-        # Save USER message
-        user_msg = ChatMessage(
-            conversation_id=conversation_id,
-            role="user",
-            content=input_text
+        # Save USER message (idempotent: avoid duplicate persistence if client already saved it)
+        last_stmt = (
+            select(ChatMessage)
+            .where(ChatMessage.conversation_id == conversation_id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
         )
-        session.add(user_msg)
-        session.commit()
+        last_msg = session.exec(last_stmt).first()
+        if not (last_msg and last_msg.role == "user" and last_msg.content == input_text):
+            user_msg = ChatMessage(
+                conversation_id=conversation_id,
+                role="user",
+                content=input_text,
+            )
+            session.add(user_msg)
+            session.commit()
 
     # 1. Permission Control: Fetch valid tools for current user
     all_tools = session.exec(select(Tool).where(Tool.status == "active")).all()
@@ -878,4 +980,9 @@ def stream_chat(
             conversation_id=conversation_id,
         ),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Disable proxy buffering (notably Nginx) so SSE arrives incrementally.
+            "X-Accel-Buffering": "no",
+        },
     )
