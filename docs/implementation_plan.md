@@ -4,6 +4,8 @@
 > **版本说明**: 本文档融合了原始设计规范与 Native Function Calling 架构升级方案，并以仓库代码为“事实来源”。
 >
 > **快速阅读**: 如需去掉代码示例、快速把握“架构/功能/逻辑/模型/界面/API/规划/进度”，先读 `docs/implementation_plan_simple.md`。
+>
+> **项目推进**: 落地任务拆解与排期见 `docs/project_execution_plan.md`（项目管理版）。
 
 ---
 
